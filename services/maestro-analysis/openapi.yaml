@@ -1,0 +1,29 @@
+openapi: 3.1.0
+info:
+  title: Vela Maestro Analysis
+  version: 0.1.0
+paths:
+  /analysis-runs:
+    post:
+      summary: Create an analysis run
+      responses:
+        "202":
+          description: Queued
+  /analysis-runs/{id}:
+    get:
+      summary: Fetch analysis run status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Analysis run
+  /readiness-scores/compute:
+    post:
+      summary: Compute launch readiness score
+      responses:
+        "200":
+          description: Readiness score

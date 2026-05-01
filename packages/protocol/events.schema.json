@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vela Evidence Event",
+  "type": "object",
+  "required": ["id", "org_id", "actor_id", "event_type", "resource_type", "payload_hash", "event_hash", "created_at"],
+  "properties": {
+    "id": {"type": "string"},
+    "org_id": {"type": "string"},
+    "repo_id": {"type": ["string", "null"]},
+    "actor_id": {"type": "string"},
+    "event_type": {"type": "string"},
+    "resource_type": {"type": "string"},
+    "resource_id": {"type": ["string", "null"]},
+    "payload_hash": {"type": "string"},
+    "prev_event_hash": {"type": ["string", "null"]},
+    "event_hash": {"type": "string"},
+    "signature": {"type": ["string", "null"]},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

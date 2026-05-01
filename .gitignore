@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+_build/
+deps/
+node_modules/
+apps/web/_build/
+apps/web/deps/
+apps/web/assets/node_modules/
+apps/web/priv/static/assets/
+apps/web/priv/static/cache_manifest.json

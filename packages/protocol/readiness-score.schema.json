@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vela Launch Readiness Score",
+  "type": "object",
+  "required": ["overall", "verdict", "confidence", "dimensions"],
+  "properties": {
+    "overall": {"type": "integer", "minimum": 0, "maximum": 100},
+    "verdict": {"enum": ["ship", "wait", "block"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "dimensions": {"type": "object"},
+    "blocking_findings": {"type": "array"},
+    "required_actions": {"type": "array", "items": {"type": "string"}}
+  }
+}
