@@ -84,6 +84,7 @@ defmodule VelaWeb.Router do
     post "/repos/:id/import", FoundationController, :import_repo
     post "/repos/:id/sync-pull-request", FoundationController, :sync_pull_request
     post "/pull-requests/:id/comments", FoundationController, :create_pr_comment
+    post "/pull-requests/:id/merge", FoundationController, :queue_pr_merge
     post "/merge-candidates/:id/simulate", FoundationController, :simulate_merge
   end
 

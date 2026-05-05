@@ -1,7 +1,7 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Idempotency, Integrations, Jobs, Webhooks}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Idempotency, Integrations, Jobs, Merge, Webhooks}
   alias Vela.Outbox.OutboxEvent
   alias Vela.Repo
 
@@ -182,6 +182,28 @@ defmodule VelaWeb.Api.V1.FoundationController do
       {:error, :not_found} -> pull_request_not_found(conn)
       {:error, %Ecto.Changeset{} = changeset} -> validation_error(conn, changeset)
       {:error, reason} -> github_error(conn, reason)
+    end
+  end
+
+  def queue_pr_merge(conn, %{"id" => id}) do
+    with {:ok, pull_request} <- fetch_pull_request(conn, id),
+         {:ok, candidate} <-
+           Repo.transaction(fn ->
+             case Merge.queue_after_successful_review(pull_request) do
+               {:ok, candidate} ->
+                 record_merge_queued!(conn, pull_request, candidate)
+                 candidate
+
+               {:error, reason} ->
+                 Repo.rollback(reason)
+             end
+           end) do
+      conn
+      |> put_status(:accepted)
+      |> json(%{data: %{pull_request_id: pull_request.id, merge_candidate: serialize(candidate)}})
+    else
+      {:error, :not_found} -> pull_request_not_found(conn)
+      {:error, reason} -> merge_gate_error(conn, reason)
     end
   end
 
@@ -423,6 +445,12 @@ defmodule VelaWeb.Api.V1.FoundationController do
     |> json(%{error: %{code: "github_comment_failed", reason: inspect(reason)}})
   end
 
+  defp merge_gate_error(conn, reason) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: %{code: "merge_gate_failed", reason: to_string(reason)}})
+  end
+
   defp trust_payload(nil), do: nil
 
   defp trust_payload(signal) do
@@ -489,6 +517,39 @@ defmodule VelaWeb.Api.V1.FoundationController do
       organization_id: conn.assigns.current_organization.id,
       repository_id: pull_request.repository_id,
       event_type: "pr.comment.created",
+      payload: payload,
+      status: "pending"
+    })
+    |> Repo.insert!()
+
+    :ok
+  end
+
+  defp record_merge_queued!(conn, pull_request, candidate) do
+    payload = %{
+      pull_request_id: pull_request.id,
+      merge_candidate_id: candidate.id,
+      base_sha: candidate.base_sha,
+      head_sha: candidate.head_sha,
+      queued_by_actor_id: conn.assigns.current_actor.id
+    }
+
+    {:ok, _event} =
+      Evidence.append_event(%{
+        organization_id: conn.assigns.current_organization.id,
+        repository_id: pull_request.repository_id,
+        actor_id: conn.assigns.current_actor.id,
+        event_type: "merge.queued",
+        resource_type: "merge_candidate",
+        resource_id: candidate.id,
+        payload: payload
+      })
+
+    %OutboxEvent{}
+    |> OutboxEvent.changeset(%{
+      organization_id: conn.assigns.current_organization.id,
+      repository_id: pull_request.repository_id,
+      event_type: "merge.queued",
       payload: payload,
       status: "pending"
     })
