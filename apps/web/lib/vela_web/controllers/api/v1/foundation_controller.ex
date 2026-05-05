@@ -1,7 +1,7 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Webhooks}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Idempotency, Integrations, Jobs, Webhooks}
   alias Vela.Repo
 
   import Ecto.Query
@@ -84,18 +84,18 @@ defmodule VelaWeb.Api.V1.FoundationController do
   def import_repo(conn, %{"id" => id}) do
     repository = Repo.get!(Vela.Forge.Repository, id)
 
-    {:ok, job} =
-      Jobs.enqueue(:repo_import, %{
-        organization_id: repository.organization_id,
-        repository_id: repository.id,
-        provider: conn.params["provider"] || "github",
-        owner: conn.params["owner"],
-        repo: conn.params["repo"] || repository.slug
-      })
+    idempotent_json(conn, repository.organization_id, fn ->
+      {:ok, job} =
+        Jobs.enqueue(:repo_import, %{
+          organization_id: repository.organization_id,
+          repository_id: repository.id,
+          provider: conn.params["provider"] || "github",
+          owner: conn.params["owner"],
+          repo: conn.params["repo"] || repository.slug
+        })
 
-    conn
-    |> put_status(:accepted)
-    |> json(%{data: %{repository_id: id, job: job_payload(job)}})
+      {202, %{data: %{repository_id: id, job: job_payload(job)}}}
+    end)
   end
 
   def simulate_merge(conn, %{"id" => id}) do
@@ -104,17 +104,17 @@ defmodule VelaWeb.Api.V1.FoundationController do
       |> preload(:repository)
       |> Repo.get!(id)
 
-    {:ok, job} =
-      Jobs.enqueue(:merge_simulation, %{
-        organization_id: candidate.repository.organization_id,
-        repository_id: candidate.repository_id,
-        merge_candidate_id: candidate.id,
-        pull_request_id: candidate.pull_request_id
-      })
+    idempotent_json(conn, candidate.repository.organization_id, fn ->
+      {:ok, job} =
+        Jobs.enqueue(:merge_simulation, %{
+          organization_id: candidate.repository.organization_id,
+          repository_id: candidate.repository_id,
+          merge_candidate_id: candidate.id,
+          pull_request_id: candidate.pull_request_id
+        })
 
-    conn
-    |> put_status(:accepted)
-    |> json(%{data: %{merge_candidate_id: id, job: job_payload(job)}})
+      {202, %{data: %{merge_candidate_id: id, job: job_payload(job)}}}
+    end)
   end
 
   def webhook(
@@ -190,6 +190,23 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   defp job_payload(%Oban.Job{} = job) do
     %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
+  end
+
+  defp idempotent_json(conn, organization_id, fun) do
+    actor_id = conn.assigns.current_actor.id
+
+    case Idempotency.run(conn, organization_id, actor_id, fun) do
+      {:ok, {status, body}} ->
+        conn |> put_status(status) |> json(body)
+
+      {:replay, {status, body}} ->
+        conn |> put_status(status) |> json(body)
+
+      {:conflict, reason} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: %{code: to_string(reason)}})
+    end
   end
 
   defp validate_webhook_context(organization_id, actor_id, repository_id) do
