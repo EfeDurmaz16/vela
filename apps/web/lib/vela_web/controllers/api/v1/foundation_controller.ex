@@ -4,50 +4,53 @@ defmodule VelaWeb.Api.V1.FoundationController do
   alias Vela.{Accounts, Agents, Evidence, Forge, Idempotency, Integrations, Jobs, Merge, Webhooks}
   alias Vela.Outbox.OutboxEvent
   alias Vela.Repo
+  alias VelaWeb.Api.V1.Response
 
   import Ecto.Query
 
-  def orgs(conn, params), do: paged(conn, Accounts.list_organizations(), params)
-  def repos(conn, params), do: paged(conn, Forge.list_repositories(), params)
-  def changes(conn, params), do: paged(conn, Forge.list_changes(), params)
-  def pull_requests(conn, params), do: paged(conn, Forge.list_pull_requests(), params)
-  def agents(conn, params), do: paged(conn, Agents.list_agent_profiles(), params)
+  def orgs(conn, params), do: Response.paged(conn, Accounts.list_organizations(), params)
+  def repos(conn, params), do: Response.paged(conn, Forge.list_repositories(), params)
+  def changes(conn, params), do: Response.paged(conn, Forge.list_changes(), params)
+  def pull_requests(conn, params), do: Response.paged(conn, Forge.list_pull_requests(), params)
+  def agents(conn, params), do: Response.paged(conn, Agents.list_agent_profiles(), params)
 
   def evidence_events(conn, params),
-    do: paged(conn, Evidence.list_recent_events(page_size(params)), params)
+    do: Response.paged(conn, Evidence.list_recent_events(Response.page_size(params)), params)
 
-  def integrations(conn, params), do: paged(conn, Integrations.list_integrations(), params)
+  def integrations(conn, params),
+    do: Response.paged(conn, Integrations.list_integrations(), params)
 
   def service_connections(conn, params),
-    do: paged(conn, Integrations.list_service_connections(), params)
+    do: Response.paged(conn, Integrations.list_service_connections(), params)
 
-  def environments(conn, params), do: paged(conn, Integrations.list_environments(), params)
+  def environments(conn, params),
+    do: Response.paged(conn, Integrations.list_environments(), params)
 
   def analysis_runs(conn, params) do
     runs = Vela.Maestro.AnalysisRun |> order_by([r], desc: r.inserted_at) |> Repo.all()
-    paged(conn, runs, params)
+    Response.paged(conn, runs, params)
   end
 
   def readiness_scores(conn, params) do
     scores = Vela.Maestro.ReadinessScore |> order_by([s], desc: s.inserted_at) |> Repo.all()
-    paged(conn, scores, params)
+    Response.paged(conn, scores, params)
   end
 
   def merge_candidates(conn, params) do
     candidates = Vela.Merge.MergeCandidate |> order_by([c], desc: c.inserted_at) |> Repo.all()
-    paged(conn, candidates, params)
+    Response.paged(conn, candidates, params)
   end
 
   def releases(conn, params) do
     releases = Vela.Releases.ReleaseCandidate |> order_by([r], desc: r.inserted_at) |> Repo.all()
-    paged(conn, releases, params)
+    Response.paged(conn, releases, params)
   end
 
   def repo_trust(conn, %{"id" => id}) do
     json(conn, %{
       data: %{
         repository_id: id,
-        signals: Enum.map(Forge.list_repository_trust_signals(id), &serialize/1)
+        signals: Enum.map(Forge.list_repository_trust_signals(id), &Response.serialize/1)
       }
     })
   end
@@ -74,17 +77,17 @@ defmodule VelaWeb.Api.V1.FoundationController do
     with {:ok, repository} <- Forge.create_repository(attrs) do
       conn
       |> put_status(:created)
-      |> json(%{data: serialize(repository)})
+      |> json(%{data: Response.serialize(repository)})
     else
-      {:error, changeset} -> validation_error(conn, changeset)
+      {:error, changeset} -> Response.validation_error(conn, changeset)
     end
   end
 
   def show_repo(conn, %{"id" => id}) do
     with {:ok, repository} <- fetch_repo(conn, id) do
-      json(conn, %{data: serialize(repository)})
+      json(conn, %{data: Response.serialize(repository)})
     else
-      {:error, :not_found} -> repo_not_found(conn)
+      {:error, :not_found} -> Response.repo_not_found(conn)
     end
   end
 
@@ -104,10 +107,10 @@ defmodule VelaWeb.Api.V1.FoundationController do
                "risk_level"
              ])
            ) do
-      json(conn, %{data: serialize(repository)})
+      json(conn, %{data: Response.serialize(repository)})
     else
-      {:error, :not_found} -> repo_not_found(conn)
-      {:error, changeset} -> validation_error(conn, changeset)
+      {:error, :not_found} -> Response.repo_not_found(conn)
+      {:error, changeset} -> Response.validation_error(conn, changeset)
     end
   end
 
@@ -116,8 +119,8 @@ defmodule VelaWeb.Api.V1.FoundationController do
          {:ok, _repository} <- Forge.delete_repository(repository) do
       send_resp(conn, :no_content, "")
     else
-      {:error, :not_found} -> repo_not_found(conn)
-      {:error, changeset} -> validation_error(conn, changeset)
+      {:error, :not_found} -> Response.repo_not_found(conn)
+      {:error, changeset} -> Response.validation_error(conn, changeset)
     end
   end
 
@@ -136,7 +139,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
         }
       })
     else
-      {:error, :not_found} -> repo_not_found(conn)
+      {:error, :not_found} -> Response.repo_not_found(conn)
     end
   end
 
@@ -157,10 +160,10 @@ defmodule VelaWeb.Api.V1.FoundationController do
       end)
     else
       {:error, :not_found} ->
-        repo_not_found(conn)
+        Response.repo_not_found(conn)
 
       {:error, :invalid_number} ->
-        validation_error(conn, %{errors: %{number: ["must be a positive integer"]}})
+        Response.validation_error(conn, %{errors: %{number: ["must be a positive integer"]}})
     end
   end
 
@@ -177,11 +180,11 @@ defmodule VelaWeb.Api.V1.FoundationController do
          :ok <- record_pr_comment!(conn, pull_request, review, github_payload) do
       conn
       |> put_status(:created)
-      |> json(%{data: review |> serialize() |> Map.put(:github, github_payload)})
+      |> json(%{data: review |> Response.serialize() |> Map.put(:github, github_payload)})
     else
-      {:error, :not_found} -> pull_request_not_found(conn)
-      {:error, %Ecto.Changeset{} = changeset} -> validation_error(conn, changeset)
-      {:error, reason} -> github_error(conn, reason)
+      {:error, :not_found} -> Response.pull_request_not_found(conn)
+      {:error, %Ecto.Changeset{} = changeset} -> Response.validation_error(conn, changeset)
+      {:error, reason} -> Response.github_error(conn, reason)
     end
   end
 
@@ -200,10 +203,12 @@ defmodule VelaWeb.Api.V1.FoundationController do
            end) do
       conn
       |> put_status(:accepted)
-      |> json(%{data: %{pull_request_id: pull_request.id, merge_candidate: serialize(candidate)}})
+      |> json(%{
+        data: %{pull_request_id: pull_request.id, merge_candidate: Response.serialize(candidate)}
+      })
     else
-      {:error, :not_found} -> pull_request_not_found(conn)
-      {:error, reason} -> merge_gate_error(conn, reason)
+      {:error, :not_found} -> Response.pull_request_not_found(conn)
+      {:error, reason} -> Response.merge_gate_error(conn, reason)
     end
   end
 
@@ -236,7 +241,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
             job
           end)
 
-        {202, %{data: %{repository: serialize(repository), job: job_payload(job)}}}
+        {202, %{data: %{repository: Response.serialize(repository), job: job_payload(job)}}}
       end)
     else
       {:error, :unsupported_provider} ->
@@ -245,7 +250,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
         |> json(%{error: %{code: "unsupported_provider"}})
 
       {:error, changeset} ->
-        validation_error(conn, changeset)
+        Response.validation_error(conn, changeset)
     end
   end
 
@@ -256,7 +261,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
       |> order_by([s], desc: s.inserted_at)
       |> Repo.all()
 
-    json(conn, %{data: Enum.map(scores, &serialize/1)})
+    json(conn, %{data: Enum.map(scores, &Response.serialize/1)})
   end
 
   def agent_sessions(conn, %{"id" => id} = params) do
@@ -266,7 +271,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
       |> order_by([s], desc: s.started_at)
       |> Repo.all()
 
-    paged(conn, sessions, params)
+    Response.paged(conn, sessions, params)
   end
 
   def agent_policies(conn, %{"id" => id} = params) do
@@ -276,7 +281,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
       |> order_by([p], asc: p.name)
       |> Repo.all()
 
-    paged(conn, policies, params)
+    Response.paged(conn, policies, params)
   end
 
   def import_repo(conn, %{"id" => id}) do
@@ -390,65 +395,11 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end
   end
 
-  defp paged(conn, entries, params) do
-    page_size = page_size(params)
-
-    json(conn, %{
-      data: entries |> Enum.take(page_size) |> Enum.map(&serialize/1),
-      pagination: %{limit: page_size, returned: min(length(entries), page_size)}
-    })
-  end
-
-  defp page_size(params) do
-    case Integer.parse(to_string(Map.get(params, "limit", "25"))) do
-      {limit, ""} when limit > 0 and limit <= 100 -> limit
-      _ -> 25
-    end
-  end
-
-  defp serialize(%schema{} = struct) do
-    struct
-    |> Map.from_struct()
-    |> Map.reject(fn {_key, value} -> match?(%Ecto.Association.NotLoaded{}, value) end)
-    |> Map.drop([:__meta__, :organization, :repository, :actor, :author_actor])
-    |> Map.put(:type, schema |> Module.split() |> List.last() |> Macro.underscore())
-  end
-
   defp fetch_repo(conn, id) do
     case Forge.get_repository_for_org(conn.assigns.current_organization.id, id) do
       nil -> {:error, :not_found}
       repository -> {:ok, repository}
     end
-  end
-
-  defp repo_not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{error: %{code: "repo_not_found"}})
-  end
-
-  defp pull_request_not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{error: %{code: "pull_request_not_found"}})
-  end
-
-  defp validation_error(conn, changeset) do
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: %{code: "validation_failed", details: errors_on(changeset)}})
-  end
-
-  defp github_error(conn, reason) do
-    conn
-    |> put_status(:bad_gateway)
-    |> json(%{error: %{code: "github_comment_failed", reason: inspect(reason)}})
-  end
-
-  defp merge_gate_error(conn, reason) do
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: %{code: "merge_gate_failed", reason: to_string(reason)}})
   end
 
   defp trust_payload(nil), do: nil
@@ -582,22 +533,6 @@ defmodule VelaWeb.Api.V1.FoundationController do
       nil -> Forge.create_repository(Map.put(attrs, :organization_id, organization_id))
       repository -> Forge.update_repository(repository, attrs)
     end
-  end
-
-  defp errors_on(changeset) do
-    if is_map(changeset) and Map.has_key?(changeset, :errors) do
-      changeset.errors
-    else
-      traverse_errors(changeset)
-    end
-  end
-
-  defp traverse_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
   end
 
   defp parse_positive_integer(value) when is_integer(value) and value > 0, do: {:ok, value}
