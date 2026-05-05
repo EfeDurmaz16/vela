@@ -45,6 +45,17 @@ The future scale model is cell-based: each cell contains Git gateway nodes, repo
 - `VELA_WEBHOOK_SECRET` for a shared webhook signing secret, or `VELA_<PROVIDER>_WEBHOOK_SECRET` / `<PROVIDER>_WEBHOOK_SECRET` for provider-specific secrets.
 - `VELA_ALLOW_UNSIGNED_WEBHOOKS=1` can temporarily relax production webhook signature enforcement.
 
+## Credential Smoke Checks
+
+Run `mix vela.smoke` from `apps/web` to check configured provider credentials without mutating remote state.
+
+- WorkOS verifies `WORKOS_API_KEY` only when `WORKOS_SMOKE_SESSION_ID` is also set.
+- GitHub verifies `GITHUB_TOKEN` only when `GITHUB_SMOKE_OWNER` and `GITHUB_SMOKE_REPO` identify a repository the token can read.
+- S3-compatible storage performs a read-only signed GET only when `S3_SMOKE_KEY` points at an existing object. It does not PUT smoke objects because the current object-store adapter has no delete operation.
+- Webhook signing verifies the configured local HMAC secret from `VELA_WEBHOOK_SECRET` or provider-specific webhook secret env vars.
+
+Missing smoke-specific configuration is reported as `SKIP`. Configured checks that fail are reported as `FAIL` and make the Mix task exit nonzero. Use `mix vela.smoke --check github` or `mix vela.smoke --checks workos,github` to limit the run.
+
 ## Request Path
 
 REST handlers return lightweight JSON envelopes and job metadata for expensive work. No Git-heavy, AI-heavy, test-heavy or merge-heavy operation is performed synchronously. Mutations are intended to pair a domain write with an evidence event and outbox event inside the same transaction as the implementation matures.
