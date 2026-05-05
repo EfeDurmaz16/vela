@@ -37,6 +37,30 @@ defmodule VelaWeb.Plugs.ApiAuthTest do
     assert %{"data" => %{"job" => %{"kind" => "repo_import", "status" => "queued"}}} = response
   end
 
+  test "protected API routes reject resources outside the authenticated tenant", %{conn: conn} do
+    %{session: session} = identity_fixture("tenant-a")
+    %{organization: other_org} = identity_fixture("tenant-b")
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: other_org.id,
+        name: "other-core",
+        slug: "other-core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low"
+      })
+
+    response =
+      conn
+      |> init_test_session(%{@session_key => session})
+      |> post(~p"/api/v1/repos/#{repo.id}/import", %{owner: "vela", repo: "other-core"})
+      |> json_response(401)
+
+    assert response == %{"error" => %{"code" => "api_auth_required"}}
+  end
+
   test "protected API routes reject stale session references", %{conn: conn} do
     %{session: session} = identity_fixture("stale")
     Repo.delete_all(Vela.Accounts.Membership)

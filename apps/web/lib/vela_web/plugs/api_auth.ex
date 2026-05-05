@@ -12,6 +12,8 @@ defmodule VelaWeb.Plugs.ApiAuth do
 
   alias Vela.Accounts.{Membership, Organization, User}
   alias Vela.Actors.Actor
+  alias Vela.Forge.Repository
+  alias Vela.Merge.MergeCandidate
   alias Vela.Repo
 
   @session_key "vela_api_auth"
@@ -26,7 +28,7 @@ defmodule VelaWeb.Plugs.ApiAuth do
     |> get_session(@session_key)
     |> load_identity()
     |> case do
-      {:ok, identity} -> assign_identity(conn, identity)
+      {:ok, identity} -> authorize_route(conn, identity)
       :error -> reject(conn)
     end
   end
@@ -66,6 +68,38 @@ defmodule VelaWeb.Plugs.ApiAuth do
     |> assign(:current_membership, identity.membership)
     |> assign(:current_actor, identity.actor)
   end
+
+  defp authorize_route(conn, identity) do
+    if route_allowed?(conn, identity.organization.id) do
+      assign_identity(conn, identity)
+    else
+      reject(conn)
+    end
+  end
+
+  defp route_allowed?(%{path_info: ["api", "v1", "repos", _id, "import"]} = conn, organization_id) do
+    case Repo.get(Repository, conn.path_params["id"]) do
+      %Repository{organization_id: ^organization_id} -> true
+      _ -> false
+    end
+  end
+
+  defp route_allowed?(
+         %{path_info: ["api", "v1", "merge-candidates", _id, "simulate"]} = conn,
+         organization_id
+       ) do
+    candidate =
+      MergeCandidate
+      |> Repo.get(conn.path_params["id"])
+      |> Repo.preload(:repository)
+
+    case candidate do
+      %MergeCandidate{repository: %Repository{organization_id: ^organization_id}} -> true
+      _ -> false
+    end
+  end
+
+  defp route_allowed?(_conn, _organization_id), do: true
 
   defp reject(conn) do
     conn
