@@ -34,6 +34,19 @@ defmodule Vela.Git.GitHubClient do
     get_json(attrs, "/repos/#{owner(attrs)}/#{repo(attrs)}/pulls/#{Map.fetch!(attrs, :number)}")
   end
 
+  def create_issue_comment(attrs) do
+    path = "/repos/#{owner(attrs)}/#{repo(attrs)}/issues/#{Map.fetch!(attrs, :number)}/comments"
+
+    with {:ok, body} <- post_json(attrs, path, %{"body" => Map.fetch!(attrs, :body)}) do
+      {:ok,
+       %{
+         external_id: body["id"],
+         html_url: body["html_url"],
+         body: body["body"]
+       }}
+    end
+  end
+
   @impl Vela.Git.RefService
   def list_refs(attrs) do
     with {:ok, refs} <-
@@ -104,6 +117,27 @@ defmodule Vela.Git.GitHubClient do
     ]
     |> Vela.HTTP.request()
     |> handle_response()
+  end
+
+  defp post_json(attrs, path, body) do
+    [
+      method: :post,
+      url: @api_base <> path,
+      headers: github_headers(attrs),
+      json: body,
+      body: body,
+      transport: Map.get(attrs, :transport)
+    ]
+    |> Vela.HTTP.request()
+    |> handle_response()
+  end
+
+  defp github_headers(attrs) do
+    [
+      {"accept", "application/vnd.github+json"},
+      {"x-github-api-version", "2022-11-28"},
+      {"user-agent", "vela"}
+    ] ++ auth_headers(attrs)
   end
 
   defp handle_response({:ok, %{status: status, body: body}}) when status in 200..299,

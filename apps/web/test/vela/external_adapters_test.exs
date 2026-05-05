@@ -73,6 +73,37 @@ defmodule Vela.ExternalAdaptersTest do
              GitHubClient.changed_paths(Map.merge(config, %{base: "base", head: "head"}))
   end
 
+  test "GitHub client creates PR issue comments with the REST issue comments endpoint" do
+    transport = fn req ->
+      assert req.method == :post
+      assert req.url.path == "/repos/vela/core/issues/12/comments"
+      assert {"authorization", "Bearer ghp_test"} in req.headers
+      assert req.body == %{"body" => "Vela readiness: ship"}
+
+      {:ok,
+       %{
+         status: 201,
+         body: %{
+           "id" => 123,
+           "html_url" => "https://github.com/vela/core/pull/12#issuecomment-123",
+           "body" => "Vela readiness: ship"
+         }
+       }}
+    end
+
+    assert {:ok, %{external_id: 123, html_url: html_url, body: "Vela readiness: ship"}} =
+             GitHubClient.create_issue_comment(%{
+               owner: "vela",
+               repo: "core",
+               number: 12,
+               body: "Vela readiness: ship",
+               token: "ghp_test",
+               transport: transport
+             })
+
+    assert html_url =~ "issuecomment-123"
+  end
+
   test "S3 object store generates SigV4 presigned URLs and signed PUT requests" do
     config = %{
       endpoint: "https://s3.test",
