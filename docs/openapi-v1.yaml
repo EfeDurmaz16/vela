@@ -125,6 +125,15 @@ paths:
         "201": { $ref: "#/components/responses/Object" }
         "404": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
+  /pull-requests/{id}/merge:
+    post:
+      summary: Queue a reviewed pull request for merge
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202": { $ref: "#/components/responses/Object" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
   /agents:
     get:
       summary: List agent actors

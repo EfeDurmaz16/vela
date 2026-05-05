@@ -22,6 +22,7 @@ defmodule VelaWeb.ApiSurfaceTest do
       {"GET", "/api/v1/changes/:id/readiness"},
       {"GET", "/api/v1/pull-requests"},
       {"POST", "/api/v1/pull-requests/:id/comments"},
+      {"POST", "/api/v1/pull-requests/:id/merge"},
       {"GET", "/api/v1/agents"},
       {"GET", "/api/v1/agents/:id/sessions"},
       {"GET", "/api/v1/agents/:id/policies"},
