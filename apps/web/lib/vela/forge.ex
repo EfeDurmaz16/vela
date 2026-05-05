@@ -21,6 +21,12 @@ defmodule Vela.Forge do
     |> Repo.one()
   end
 
+  def get_repository_by_slug_for_org(organization_id, slug) do
+    Repository
+    |> where([r], r.organization_id == ^organization_id and r.slug == ^slug)
+    |> Repo.one()
+  end
+
   def create_branch(attrs), do: %Branch{} |> Branch.changeset(attrs) |> Repo.insert()
   def create_change(attrs), do: %Change{} |> Change.changeset(attrs) |> Repo.insert()
 

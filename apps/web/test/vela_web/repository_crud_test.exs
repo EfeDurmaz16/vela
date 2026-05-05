@@ -109,6 +109,63 @@ defmodule VelaWeb.RepositoryCrudTest do
     refute Repo.get(Vela.Forge.Repository, repo.id)
   end
 
+  test "authenticated users can start a GitHub import from owner and repo", %{conn: conn} do
+    {:ok, org} = Accounts.create_organization(%{name: "GH Import Org", slug: "gh-import-org"})
+    session = auth_session_for_org!(org, "github-import")
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos/import", %{provider: "github", owner: "vela", repo: "core"})
+      |> json_response(202)
+
+    assert %{
+             "data" => %{
+               "repository" => %{
+                 "id" => repo_id,
+                 "provider" => "github",
+                 "full_name" => "vela/core",
+                 "import_status" => "pending"
+               },
+               "job" => %{"kind" => "repo_import", "status" => "queued"}
+             }
+           } = response
+
+    repository = Repo.get!(Vela.Forge.Repository, repo_id)
+    assert repository.organization_id == org.id
+    assert repository.slug == "core"
+    assert repository.health_status == "unknown"
+
+    assert [%{event_type: "repo.import_queued", resource_id: ^repo_id}] =
+             Vela.Evidence.list_repository_events(repo_id, 5)
+  end
+
+  test "GitHub import reuses an existing repository placeholder for the same slug", %{conn: conn} do
+    {:ok, org} = Accounts.create_organization(%{name: "GH Existing Org", slug: "gh-existing-org"})
+    session = auth_session_for_org!(org, "github-existing")
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "core",
+        slug: "core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "unknown",
+        risk_level: "medium"
+      })
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos/import", %{provider: "github", owner: "vela", repo: "core"})
+      |> json_response(202)
+
+    assert %{"data" => %{"repository" => %{"id" => id}}} = response
+    assert id == repo.id
+    assert Repo.get!(Vela.Forge.Repository, repo.id).import_status == "pending"
+  end
+
   defp auth_session_for_org!(org, suffix) do
     {:ok, user} =
       Accounts.create_user(%{
