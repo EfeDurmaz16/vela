@@ -14,6 +14,7 @@ defmodule Vela.Maestro.AnalysisRun do
     belongs_to :repository, Vela.Forge.Repository
     belongs_to :pull_request, Vela.Forge.PullRequest
     has_one :readiness_score, Vela.Maestro.LaunchReadinessScore
+    has_one :trust_readiness_score, Vela.Maestro.ReadinessScore
 
     timestamps(type: :utc_datetime)
   end

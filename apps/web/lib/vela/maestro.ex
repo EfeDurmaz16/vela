@@ -3,7 +3,7 @@ defmodule Vela.Maestro do
   Local deterministic Phase 0 readiness scoring plus persisted analysis records.
   """
 
-  alias Vela.Maestro.{AnalysisRun, LaunchReadinessScore}
+  alias Vela.Maestro.{AnalysisRun, LaunchReadinessScore, ReadinessScore}
   alias Vela.Repo
 
   @default_weights %{
@@ -47,6 +47,31 @@ defmodule Vela.Maestro do
 
   def create_launch_readiness_score(attrs),
     do: %LaunchReadinessScore{} |> LaunchReadinessScore.changeset(attrs) |> Repo.insert()
+
+  def create_readiness_score(attrs),
+    do: %ReadinessScore{} |> ReadinessScore.changeset(attrs) |> Repo.insert()
+
+  def compute_readiness(%{dimensions: dimensions} = attrs) do
+    confidence = Map.get(attrs, :confidence, "medium")
+    score = dimensions |> Map.values() |> Enum.sum() |> div(map_size(dimensions))
+
+    verdict =
+      cond do
+        Enum.any?(
+          ["security", "test_evidence", "repository_trust"],
+          &(Map.get(dimensions, &1, 0) < 50)
+        ) ->
+          "block"
+
+        confidence == "low" or score < 75 ->
+          "wait"
+
+        true ->
+          "ship"
+      end
+
+    %{score: score, verdict: verdict, confidence: confidence, dimensions: dimensions}
+  end
 
   def compute_readiness_score(attrs) do
     profile = Map.get(attrs, :repo_profile, :default)

@@ -5,11 +5,12 @@ defmodule Vela.Forge do
 
   import Ecto.Query
 
-  alias Vela.Forge.{Branch, Issue, PullRequest, Repository, Review}
+  alias Vela.Forge.{Branch, Change, Issue, PullRequest, Repository, RepositoryTrustSignal, Review}
   alias Vela.Repo
 
   def create_repository(attrs), do: %Repository{} |> Repository.changeset(attrs) |> Repo.insert()
   def create_branch(attrs), do: %Branch{} |> Branch.changeset(attrs) |> Repo.insert()
+  def create_change(attrs), do: %Change{} |> Change.changeset(attrs) |> Repo.insert()
 
   def create_pull_request(attrs),
     do: %PullRequest{} |> PullRequest.changeset(attrs) |> Repo.insert()
@@ -20,10 +21,27 @@ defmodule Vela.Forge do
   def create_review(attrs), do: %Review{} |> Review.changeset(attrs) |> Repo.insert()
   def create_issue(attrs), do: %Issue{} |> Issue.changeset(attrs) |> Repo.insert()
 
+  def create_repository_trust_signal(attrs),
+    do: %RepositoryTrustSignal{} |> RepositoryTrustSignal.changeset(attrs) |> Repo.insert()
+
+  def list_changes do
+    Change
+    |> preload([:organization, :repository, :author_actor])
+    |> order_by([c], desc: c.inserted_at)
+    |> Repo.all()
+  end
+
   def list_repositories do
     Repository
     |> preload([:organization, :pull_requests])
     |> order_by([r], asc: r.name)
+    |> Repo.all()
+  end
+
+  def list_repository_trust_signals(repository_id) do
+    RepositoryTrustSignal
+    |> where([s], s.repository_id == ^repository_id)
+    |> order_by([s], desc: s.inserted_at)
     |> Repo.all()
   end
 

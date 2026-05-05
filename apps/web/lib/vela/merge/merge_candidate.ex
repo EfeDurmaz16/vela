@@ -1,7 +1,7 @@
 defmodule Vela.Merge.MergeCandidate do
   use Vela.Schema
 
-  @statuses ~w(pending simulating testing blocked ready merging merged failed cancelled)
+  @statuses Vela.StateMachine.states(:merge_candidate)
 
   schema "merge_candidates" do
     field :base_sha, :string

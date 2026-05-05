@@ -9,6 +9,15 @@ alias Vela.Pipelines
 alias Vela.Repo
 
 for schema <- [
+      Vela.Outbox.OutboxEvent,
+      Vela.Idempotency.IdempotencyKey,
+      Vela.Forge.RepositoryTrustSignal,
+      Vela.Integrations.ServiceConnection,
+      Vela.Integrations.Environment,
+      Vela.Integrations.Integration,
+      Vela.Releases.ReleaseCandidate,
+      Vela.Maestro.ReadinessScore,
+      Vela.Forge.Change,
       Vela.Pipelines.PipelineJob,
       Vela.Pipelines.PipelineRun,
       Vela.Pipelines.Runner,
@@ -246,6 +255,22 @@ now = DateTime.utc_now() |> DateTime.truncate(:second)
     labels: ["auth", "phase-1"]
   })
 
+{:ok, change} =
+  Forge.create_change(%{
+    organization_id: org.id,
+    repository_id: sardis_repo.id,
+    author_actor_id: agent_actor.id,
+    title: "Pre-execution payment policy gate",
+    description: "Tracked Change record backing the agent-authored policy enforcement PR.",
+    source_ref: ship_pr.source_branch,
+    target_ref: ship_pr.target_branch,
+    head_sha: ship_pr.head_sha,
+    base_sha: ship_pr.base_sha,
+    status: "approved",
+    risk_level: "medium",
+    metadata: %{"pull_request_id" => ship_pr.id}
+  })
+
 {:ok, ship_analysis} =
   Maestro.create_analysis_run(%{
     organization_id: org.id,
@@ -280,6 +305,34 @@ ship_score_attrs =
   |> Map.put(:overall_score, 82)
 
 {:ok, ship_score} = Maestro.create_launch_readiness_score(ship_score_attrs)
+
+trust_readiness =
+  Maestro.compute_readiness(%{
+    confidence: "high",
+    dimensions: %{
+      "repository_trust" => 86,
+      "change_risk" => 78,
+      "test_evidence" => 80,
+      "security" => 76,
+      "performance" => 84,
+      "agent_provenance" => 78,
+      "launch_readiness" => 82
+    }
+  })
+
+{:ok, _readiness_score} =
+  Maestro.create_readiness_score(
+    trust_readiness
+    |> Map.merge(%{
+      organization_id: org.id,
+      repository_id: sardis_repo.id,
+      change_id: change.id,
+      analysis_run_id: ship_analysis.id,
+      explanation:
+        "Trust score combines repository health, bounded change risk, security, tests, performance, provenance, and launch readiness.",
+      evidence_refs: []
+    })
+  )
 
 {:ok, ship_candidate} =
   Merge.create_merge_candidate(%{
@@ -415,6 +468,63 @@ blocked_score_attrs =
     logs_ref: "s3://vela-demo-artifacts/logs/policy-tests.txt",
     artifacts_ref: "s3://vela-demo-artifacts/artifacts/policy-tests.json",
     status: "completed"
+  })
+
+{:ok, _trust_signal} =
+  Forge.create_repository_trust_signal(%{
+    organization_id: org.id,
+    repository_id: sardis_repo.id,
+    source: "seed",
+    signal_type: "protected_branch",
+    score: 90,
+    confidence: "high",
+    payload: %{"branch" => "main", "required_reviews" => 1}
+  })
+
+{:ok, integration} =
+  Vela.Integrations.create_integration(%{
+    organization_id: org.id,
+    provider: "vercel",
+    name: "Sardis Vercel",
+    status: "active",
+    config: %{"team" => "sardis-labs"},
+    token_ciphertext: "kms://demo/vercel-token",
+    external_ref: "vercel:team_demo"
+  })
+
+{:ok, environment} =
+  Vela.Integrations.create_environment(%{
+    organization_id: org.id,
+    repository_id: sardis_repo.id,
+    name: "production",
+    type: "production",
+    status: "active",
+    metadata: %{"domain" => "sardis.sh"}
+  })
+
+{:ok, _service_connection} =
+  Vela.Integrations.create_service_connection(%{
+    organization_id: org.id,
+    repository_id: sardis_repo.id,
+    integration_id: integration.id,
+    environment_id: environment.id,
+    service_name: "sardis-api",
+    service_type: "deployment",
+    status: "active",
+    external_ref: "vercel:project_sardis_api"
+  })
+
+{:ok, _release_candidate} =
+  Vela.Releases.create_release_candidate(%{
+    organization_id: org.id,
+    repository_id: sardis_repo.id,
+    merge_candidate_id: ship_candidate.id,
+    created_by_actor_id: human_actor.id,
+    version: "2026.05.05-demo",
+    environment: "production",
+    status: "ready",
+    artifact_ref: "s3://vela-demo-artifacts/releases/2026.05.05-demo.json",
+    rollback_plan: %{"strategy" => "revert-merge-commit"}
   })
 
 for {event_type, actor, repo, resource_type, resource_id, payload} <- [

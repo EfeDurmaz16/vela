@@ -12,7 +12,7 @@ defmodule Vela.Evidence do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
     payload = Map.get(attrs, :payload, %{})
     payload_hash = hash(payload)
-    prev_event_hash = latest_event_hash(attrs.organization_id)
+    prev_event_hash = latest_event_hash(attrs.organization_id, Map.get(attrs, :repository_id))
 
     event_body = %{
       organization_id: attrs.organization_id,
@@ -60,13 +60,23 @@ defmodule Vela.Evidence do
 
   def canonical_json(value), do: value |> normalize() |> Jason.encode!()
 
-  defp latest_event_hash(organization_id) do
+  defp latest_event_hash(organization_id, nil) do
+    latest_event_hash_query()
+    |> where([e], e.organization_id == ^organization_id and is_nil(e.repository_id))
+    |> Repo.one()
+  end
+
+  defp latest_event_hash(organization_id, repository_id) do
+    latest_event_hash_query()
+    |> where([e], e.organization_id == ^organization_id and e.repository_id == ^repository_id)
+    |> Repo.one()
+  end
+
+  defp latest_event_hash_query do
     EvidenceEvent
-    |> where([e], e.organization_id == ^organization_id)
     |> order_by([e], desc: e.inserted_at)
     |> limit(1)
     |> select([e], e.event_hash)
-    |> Repo.one()
   end
 
   defp normalize(%{} = map) do

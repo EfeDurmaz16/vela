@@ -17,7 +17,9 @@ defmodule Vela.Forge.Repository do
 
     belongs_to :organization, Vela.Accounts.Organization
     has_many :branches, Vela.Forge.Branch
+    has_many :changes, Vela.Forge.Change
     has_many :pull_requests, Vela.Forge.PullRequest
+    has_many :repository_trust_signals, Vela.Forge.RepositoryTrustSignal
 
     timestamps(type: :utc_datetime)
   end
