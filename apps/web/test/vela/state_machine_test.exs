@@ -20,6 +20,8 @@ defmodule Vela.StateMachineTest do
     assert StateMachine.allowed?(:analysis_run, "queued", "running")
     assert StateMachine.allowed?(:analysis_run, "running", "completed")
     assert StateMachine.allowed?(:merge_candidate, "pending", "simulating")
+    assert StateMachine.allowed?(:merge_candidate, "pending", "queued")
+    assert StateMachine.allowed?(:merge_candidate, "queued", "merging")
     assert StateMachine.allowed?(:merge_candidate, "testing", "blocked")
     assert StateMachine.allowed?(:release_candidate, "draft", "evaluating")
     assert StateMachine.allowed?(:release_candidate, "launching", "launched")
