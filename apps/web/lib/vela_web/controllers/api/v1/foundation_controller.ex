@@ -121,6 +121,25 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end
   end
 
+  def repo_readiness(conn, %{"id" => id}) do
+    with {:ok, repository} <- fetch_repo(conn, id) do
+      latest_signal = Forge.latest_repository_trust_signal(repository.id)
+
+      json(conn, %{
+        data: %{
+          repository_id: repository.id,
+          health_status: repository.health_status,
+          risk_level: repository.risk_level,
+          import_status: repository.import_status,
+          open_pull_requests: Forge.count_open_pull_requests(repository.id),
+          trust: trust_payload(latest_signal)
+        }
+      })
+    else
+      {:error, :not_found} -> repo_not_found(conn)
+    end
+  end
+
   def import_github_repo(conn, %{"owner" => owner, "repo" => repo_name} = params) do
     provider = Map.get(params, "provider", "github")
 
@@ -345,6 +364,18 @@ defmodule VelaWeb.Api.V1.FoundationController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{error: %{code: "validation_failed", details: errors_on(changeset)}})
+  end
+
+  defp trust_payload(nil), do: nil
+
+  defp trust_payload(signal) do
+    %{
+      source: signal.source,
+      signal_type: signal.signal_type,
+      score: signal.score,
+      confidence: signal.confidence,
+      payload: signal.payload
+    }
   end
 
   defp ensure_github_provider("github"), do: :ok

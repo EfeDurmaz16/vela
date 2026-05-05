@@ -63,6 +63,21 @@ defmodule Vela.Forge do
     |> Repo.all()
   end
 
+  def latest_repository_trust_signal(repository_id) do
+    RepositoryTrustSignal
+    |> where([s], s.repository_id == ^repository_id)
+    |> order_by([s], desc: s.inserted_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  def count_open_pull_requests(repository_id) do
+    PullRequest
+    |> where([pr], pr.repository_id == ^repository_id)
+    |> where([pr], pr.status in ["open", "ready_for_review", "blocked", "approved", "queued"])
+    |> Repo.aggregate(:count)
+  end
+
   def list_pull_requests do
     PullRequest
     |> preload([:author_actor, :readiness_scores, :merge_candidates, repository: :organization])

@@ -166,6 +166,72 @@ defmodule VelaWeb.RepositoryCrudTest do
     assert Repo.get!(Vela.Forge.Repository, repo.id).import_status == "pending"
   end
 
+  test "authenticated users can inspect repository readiness", %{conn: conn} do
+    {:ok, org} = Accounts.create_organization(%{name: "Readiness Org", slug: "readiness-org"})
+    session = auth_session_for_org!(org, "readiness")
+
+    {:ok, actor} =
+      Actors.create_actor(%{
+        organization_id: org.id,
+        type: "human",
+        display_name: "Reviewer",
+        trust_level: "trusted"
+      })
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "core",
+        slug: "core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low",
+        import_status: "imported"
+      })
+
+    {:ok, _signal} =
+      Forge.create_repository_trust_signal(%{
+        organization_id: org.id,
+        repository_id: repo.id,
+        source: "github",
+        signal_type: "branch_protection",
+        score: 92,
+        confidence: "high"
+      })
+
+    {:ok, _pr} =
+      Forge.create_pull_request(%{
+        repository_id: repo.id,
+        author_actor_id: actor.id,
+        title: "Change",
+        source_branch: "feature",
+        target_branch: "main",
+        head_sha: "head",
+        base_sha: "base",
+        status: "ready_for_review"
+      })
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> get(~p"/api/v1/repos/#{repo.id}/readiness")
+      |> json_response(200)
+
+    assert %{
+             "data" => %{
+               "repository_id" => repo_id,
+               "health_status" => "healthy",
+               "risk_level" => "low",
+               "import_status" => "imported",
+               "open_pull_requests" => 1,
+               "trust" => %{"score" => 92, "confidence" => "high"}
+             }
+           } = response
+
+    assert repo_id == repo.id
+  end
+
   defp auth_session_for_org!(org, suffix) do
     {:ok, user} =
       Accounts.create_user(%{

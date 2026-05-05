@@ -77,6 +77,7 @@ defmodule VelaWeb.Router do
 
     post "/repos", FoundationController, :create_repo
     post "/repos/import", FoundationController, :import_github_repo
+    get "/repos/:id/readiness", FoundationController, :repo_readiness
     get "/repos/:id", FoundationController, :show_repo
     put "/repos/:id", FoundationController, :update_repo
     delete "/repos/:id", FoundationController, :delete_repo
