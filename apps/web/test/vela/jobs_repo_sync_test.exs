@@ -89,5 +89,15 @@ defmodule Vela.JobsRepoSyncTest do
     assert candidate.base_sha == "basesha"
     assert candidate.head_sha == "headsha"
     assert candidate.status == "pending"
+
+    [score] = Vela.Maestro.ReadinessScore |> Repo.all()
+    assert score.repository_id == repo.id
+    assert score.score >= 0
+    assert score.verdict in ["ship", "wait", "block"]
+
+    assert [%{event_type: "pr.synced", resource_id: pr_id}] =
+             Vela.Evidence.list_repository_events(repo.id, 5)
+
+    assert pr_id == pr.id
   end
 end

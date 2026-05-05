@@ -1,6 +1,8 @@
 defmodule Vela.Jobs.RepoSyncWorker do
   use Oban.Worker, queue: :sync, max_attempts: 5
 
+  alias Vela.Outbox.OutboxEvent
+
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     with :ok <-
@@ -52,11 +54,79 @@ defmodule Vela.Jobs.RepoSyncWorker do
              base_sha: imported.base_sha,
              head_sha: imported.head_sha,
              status: "pending"
-           }) do
+           }),
+         {:ok, _score} <- seed_readiness(repository, pr),
+         :ok <- record_pr_synced(repository, pr, Map.get(args, "actor_id")) do
       :ok
     end
   end
 
   defp sync_repository(%{"provider" => provider}), do: {:error, {:unsupported_provider, provider}}
   defp sync_repository(_args), do: {:error, :missing_provider}
+
+  defp seed_readiness(repository, pr) do
+    dimensions = %{
+      "repository_trust" => repository_trust(repository),
+      "change_risk" => change_risk(pr),
+      "test_evidence" => 50,
+      "security" => 70,
+      "performance" => 70,
+      "agent_provenance" => 60,
+      "launch_readiness" => 65
+    }
+
+    readiness = Vela.Maestro.compute_readiness(%{dimensions: dimensions, confidence: "medium"})
+
+    Vela.Maestro.create_readiness_score(%{
+      organization_id: repository.organization_id,
+      repository_id: repository.id,
+      score: readiness.score,
+      verdict: readiness.verdict,
+      confidence: readiness.confidence,
+      dimensions: readiness.dimensions,
+      explanation: "Seeded from GitHub PR sync until full analysis completes.",
+      evidence_refs: []
+    })
+  end
+
+  defp record_pr_synced(repository, pr, actor_id) do
+    payload = %{
+      pull_request_id: pr.id,
+      external_number: pr.external_number,
+      head_sha: pr.head_sha,
+      base_sha: pr.base_sha
+    }
+
+    {:ok, _event} =
+      Vela.Evidence.append_event(%{
+        organization_id: repository.organization_id,
+        repository_id: repository.id,
+        actor_id: actor_id,
+        event_type: "pr.synced",
+        resource_type: "pull_request",
+        resource_id: pr.id,
+        payload: payload
+      })
+
+    %OutboxEvent{}
+    |> OutboxEvent.changeset(%{
+      organization_id: repository.organization_id,
+      repository_id: repository.id,
+      event_type: "pr.synced",
+      payload: payload,
+      status: "pending"
+    })
+    |> Vela.Repo.insert!()
+
+    :ok
+  end
+
+  defp repository_trust(%{health_status: "healthy"}), do: 80
+  defp repository_trust(%{health_status: "degraded"}), do: 60
+  defp repository_trust(%{health_status: "failing"}), do: 35
+  defp repository_trust(_repository), do: 50
+
+  defp change_risk(%{status: "draft"}), do: 60
+  defp change_risk(%{status: "ready_for_review"}), do: 75
+  defp change_risk(_pr), do: 65
 end
