@@ -59,4 +59,4 @@ Missing smoke-specific configuration is reported as `SKIP`. Configured checks th
 
 ## Request Path
 
-REST handlers return lightweight JSON envelopes and job metadata for expensive work. No Git-heavy, AI-heavy, test-heavy or merge-heavy operation is performed synchronously. Mutations are intended to pair a domain write with an evidence event and outbox event inside the same transaction as the implementation matures.
+REST handlers return lightweight JSON envelopes and job metadata for expensive work. No Git-heavy, AI-heavy, test-heavy or merge-heavy operation is performed synchronously. Mutating job endpoints pair the queued Oban job with a hash-chained evidence event and a pending outbox event inside the same database transaction.

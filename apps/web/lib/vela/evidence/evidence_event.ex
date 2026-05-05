@@ -2,7 +2,7 @@ defmodule Vela.Evidence.EvidenceEvent do
   use Vela.Schema
 
   @event_types ~w(
-    repo.created repo.imported push.received branch.updated pr.opened pr.updated
+    repo.created repo.import_queued repo.imported push.received branch.updated pr.opened pr.updated
     review.submitted agent.session.started agent.session.completed analysis.started
     analysis.completed score.computed policy.evaluated merge.simulated merge.queued
     merge.completed merge.blocked deployment.approved deployment.blocked

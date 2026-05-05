@@ -1,7 +1,7 @@
 defmodule VelaWeb.ApiJobsTest do
   use VelaWeb.ConnCase, async: false
 
-  alias Vela.{Accounts, Actors, Forge, Merge}
+  alias Vela.{Accounts, Actors, Forge, Merge, Repo}
   alias VelaWeb.Plugs.ApiAuth
 
   test "repo import endpoint enqueues a real Oban import job", %{conn: conn} do
@@ -32,10 +32,16 @@ defmodule VelaWeb.ApiJobsTest do
            } = response
 
     assert %Oban.Job{args: %{"repository_id" => repo_id, "organization_id" => org_id}} =
-             Vela.Repo.get!(Oban.Job, job_id)
+             Repo.get!(Oban.Job, job_id)
 
     assert repo_id == repo.id
     assert org_id == org.id
+
+    assert [%{event_type: "repo.import_queued", resource_id: ^repo_id}] =
+             Vela.Evidence.list_repository_events(repo.id, 5)
+
+    assert [%{event_type: "repo.import_queued", repository_id: ^repo_id}] =
+             Vela.Outbox.OutboxEvent |> Repo.all()
   end
 
   test "repo import endpoint replays the first response for the same idempotency key and request",
@@ -75,7 +81,7 @@ defmodule VelaWeb.ApiJobsTest do
       |> json_response(202)
 
     assert second == first
-    assert length(Oban.Job |> Vela.Repo.all()) == 1
+    assert length(Oban.Job |> Repo.all()) == 1
   end
 
   test "repo import endpoint rejects idempotency key reuse with a different request", %{
@@ -138,9 +144,17 @@ defmodule VelaWeb.ApiJobsTest do
            } = response
 
     assert %Oban.Job{args: %{"merge_candidate_id" => candidate_id}} =
-             Vela.Repo.get!(Oban.Job, job_id)
+             Repo.get!(Oban.Job, job_id)
 
     assert candidate_id == candidate.id
+
+    assert [%{event_type: "merge.queued", resource_id: ^candidate_id}] =
+             Vela.Evidence.list_repository_events(candidate.repository_id, 5)
+
+    assert [%{event_type: "merge.queued", repository_id: repository_id}] =
+             Vela.Outbox.OutboxEvent |> Repo.all()
+
+    assert repository_id == candidate.repository_id
   end
 
   test "merge simulation endpoint replays the first response for the same idempotency key", %{
@@ -169,7 +183,7 @@ defmodule VelaWeb.ApiJobsTest do
       |> json_response(202)
 
     assert second == first
-    assert length(Oban.Job |> Vela.Repo.all()) == 1
+    assert length(Oban.Job |> Repo.all()) == 1
   end
 
   defp merge_candidate_fixture!(org) do

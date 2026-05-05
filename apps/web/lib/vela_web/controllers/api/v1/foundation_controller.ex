@@ -2,6 +2,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
   alias Vela.{Accounts, Agents, Evidence, Forge, Idempotency, Integrations, Jobs, Webhooks}
+  alias Vela.Outbox.OutboxEvent
   alias Vela.Repo
 
   import Ecto.Query
@@ -86,13 +87,27 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
     idempotent_json(conn, repository.organization_id, fn ->
       {:ok, job} =
-        Jobs.enqueue(:repo_import, %{
-          organization_id: repository.organization_id,
-          repository_id: repository.id,
-          provider: conn.params["provider"] || "github",
-          owner: conn.params["owner"],
-          repo: conn.params["repo"] || repository.slug
-        })
+        Repo.transaction(fn ->
+          {:ok, job} =
+            Jobs.enqueue(:repo_import, %{
+              organization_id: repository.organization_id,
+              repository_id: repository.id,
+              provider: conn.params["provider"] || "github",
+              owner: conn.params["owner"],
+              repo: conn.params["repo"] || repository.slug
+            })
+
+          record_job_accepted!(conn, %{
+            organization_id: repository.organization_id,
+            repository_id: repository.id,
+            event_type: "repo.import_queued",
+            resource_type: "repository",
+            resource_id: repository.id,
+            job: job
+          })
+
+          job
+        end)
 
       {202, %{data: %{repository_id: id, job: job_payload(job)}}}
     end)
@@ -106,12 +121,26 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
     idempotent_json(conn, candidate.repository.organization_id, fn ->
       {:ok, job} =
-        Jobs.enqueue(:merge_simulation, %{
-          organization_id: candidate.repository.organization_id,
-          repository_id: candidate.repository_id,
-          merge_candidate_id: candidate.id,
-          pull_request_id: candidate.pull_request_id
-        })
+        Repo.transaction(fn ->
+          {:ok, job} =
+            Jobs.enqueue(:merge_simulation, %{
+              organization_id: candidate.repository.organization_id,
+              repository_id: candidate.repository_id,
+              merge_candidate_id: candidate.id,
+              pull_request_id: candidate.pull_request_id
+            })
+
+          record_job_accepted!(conn, %{
+            organization_id: candidate.repository.organization_id,
+            repository_id: candidate.repository_id,
+            event_type: "merge.queued",
+            resource_type: "merge_candidate",
+            resource_id: candidate.id,
+            job: job
+          })
+
+          job
+        end)
 
       {202, %{data: %{merge_candidate_id: id, job: job_payload(job)}}}
     end)
@@ -207,6 +236,36 @@ defmodule VelaWeb.Api.V1.FoundationController do
         |> put_status(:conflict)
         |> json(%{error: %{code: to_string(reason)}})
     end
+  end
+
+  defp record_job_accepted!(conn, attrs) do
+    payload = %{
+      job_id: attrs.job.id,
+      job_kind: attrs.job.args["kind"],
+      queue: attrs.job.queue,
+      actor_id: conn.assigns.current_actor.id
+    }
+
+    {:ok, _event} =
+      Evidence.append_event(%{
+        organization_id: attrs.organization_id,
+        repository_id: attrs.repository_id,
+        actor_id: conn.assigns.current_actor.id,
+        event_type: attrs.event_type,
+        resource_type: attrs.resource_type,
+        resource_id: attrs.resource_id,
+        payload: payload
+      })
+
+    %OutboxEvent{}
+    |> OutboxEvent.changeset(%{
+      organization_id: attrs.organization_id,
+      repository_id: attrs.repository_id,
+      event_type: attrs.event_type,
+      payload: Map.put(payload, :resource_id, attrs.resource_id),
+      status: "pending"
+    })
+    |> Repo.insert!()
   end
 
   defp validate_webhook_context(organization_id, actor_id, repository_id) do
