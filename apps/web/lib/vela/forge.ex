@@ -36,6 +36,14 @@ defmodule Vela.Forge do
   def update_pull_request(%PullRequest{} = pr, attrs),
     do: pr |> PullRequest.changeset(attrs) |> Repo.update()
 
+  def get_pull_request_for_org(organization_id, id) do
+    PullRequest
+    |> join(:inner, [pr], r in assoc(pr, :repository))
+    |> where([pr, r], r.organization_id == ^organization_id and pr.id == ^id)
+    |> preload([:repository])
+    |> Repo.one()
+  end
+
   def create_review(attrs), do: %Review{} |> Review.changeset(attrs) |> Repo.insert()
   def create_issue(attrs), do: %Issue{} |> Issue.changeset(attrs) |> Repo.insert()
 

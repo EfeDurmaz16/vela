@@ -3,7 +3,7 @@ defmodule Vela.Evidence.EvidenceEvent do
 
   @event_types ~w(
     repo.created repo.import_queued repo.imported push.received branch.updated pr.opened pr.updated
-    review.submitted agent.session.started agent.session.completed analysis.started
+    pr.comment.created review.submitted agent.session.started agent.session.completed analysis.started
     analysis.completed score.computed policy.evaluated merge.simulated merge.queued
     merge.completed merge.blocked deployment.approved deployment.blocked
     integration.event_received

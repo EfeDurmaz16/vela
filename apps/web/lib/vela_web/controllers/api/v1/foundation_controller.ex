@@ -140,6 +140,27 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end
   end
 
+  def create_pr_comment(conn, %{"id" => id, "body" => body} = params) do
+    with {:ok, pull_request} <- fetch_pull_request(conn, id),
+         {:ok, review} <-
+           Forge.create_review(%{
+             pull_request_id: pull_request.id,
+             actor_id: conn.assigns.current_actor.id,
+             status: "comment",
+             summary: body
+           }),
+         {:ok, github_payload} <- maybe_publish_github_comment(pull_request, body, params),
+         :ok <- record_pr_comment!(conn, pull_request, review, github_payload) do
+      conn
+      |> put_status(:created)
+      |> json(%{data: review |> serialize() |> Map.put(:github, github_payload)})
+    else
+      {:error, :not_found} -> pull_request_not_found(conn)
+      {:error, %Ecto.Changeset{} = changeset} -> validation_error(conn, changeset)
+      {:error, reason} -> github_error(conn, reason)
+    end
+  end
+
   def import_github_repo(conn, %{"owner" => owner, "repo" => repo_name} = params) do
     provider = Map.get(params, "provider", "github")
 
@@ -360,10 +381,22 @@ defmodule VelaWeb.Api.V1.FoundationController do
     |> json(%{error: %{code: "repo_not_found"}})
   end
 
+  defp pull_request_not_found(conn) do
+    conn
+    |> put_status(:not_found)
+    |> json(%{error: %{code: "pull_request_not_found"}})
+  end
+
   defp validation_error(conn, changeset) do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{error: %{code: "validation_failed", details: errors_on(changeset)}})
+  end
+
+  defp github_error(conn, reason) do
+    conn
+    |> put_status(:bad_gateway)
+    |> json(%{error: %{code: "github_comment_failed", reason: inspect(reason)}})
   end
 
   defp trust_payload(nil), do: nil
@@ -376,6 +409,68 @@ defmodule VelaWeb.Api.V1.FoundationController do
       confidence: signal.confidence,
       payload: signal.payload
     }
+  end
+
+  defp fetch_pull_request(conn, id) do
+    case Forge.get_pull_request_for_org(conn.assigns.current_organization.id, id) do
+      nil -> {:error, :not_found}
+      pull_request -> {:ok, pull_request}
+    end
+  end
+
+  defp maybe_publish_github_comment(pull_request, body, %{"publish_to_github" => true}) do
+    repository = pull_request.repository
+    config = Application.get_env(:vela, :github, [])
+
+    with "github" <- repository.provider,
+         number when is_integer(number) <- pull_request.external_number,
+         [owner, repo] <- String.split(repository.full_name || "", "/", parts: 2),
+         {:ok, github_comment} <-
+           Vela.Git.GitHubClient.create_issue_comment(%{
+             owner: owner,
+             repo: repo,
+             number: number,
+             body: body,
+             token: Keyword.get(config, :token),
+             transport: Keyword.get(config, :transport)
+           }) do
+      {:ok, github_comment}
+    else
+      other -> {:error, {:github_comment_unavailable, other}}
+    end
+  end
+
+  defp maybe_publish_github_comment(_pull_request, _body, _params), do: {:ok, nil}
+
+  defp record_pr_comment!(conn, pull_request, review, github_payload) do
+    payload = %{
+      review_id: review.id,
+      pull_request_id: pull_request.id,
+      github: github_payload
+    }
+
+    {:ok, _event} =
+      Evidence.append_event(%{
+        organization_id: conn.assigns.current_organization.id,
+        repository_id: pull_request.repository_id,
+        actor_id: conn.assigns.current_actor.id,
+        event_type: "pr.comment.created",
+        resource_type: "pull_request",
+        resource_id: pull_request.id,
+        payload: payload
+      })
+
+    %OutboxEvent{}
+    |> OutboxEvent.changeset(%{
+      organization_id: conn.assigns.current_organization.id,
+      repository_id: pull_request.repository_id,
+      event_type: "pr.comment.created",
+      payload: payload,
+      status: "pending"
+    })
+    |> Repo.insert!()
+
+    :ok
   end
 
   defp ensure_github_provider("github"), do: :ok

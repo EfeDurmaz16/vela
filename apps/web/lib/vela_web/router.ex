@@ -82,6 +82,7 @@ defmodule VelaWeb.Router do
     put "/repos/:id", FoundationController, :update_repo
     delete "/repos/:id", FoundationController, :delete_repo
     post "/repos/:id/import", FoundationController, :import_repo
+    post "/pull-requests/:id/comments", FoundationController, :create_pr_comment
     post "/merge-candidates/:id/simulate", FoundationController, :simulate_merge
   end
 
