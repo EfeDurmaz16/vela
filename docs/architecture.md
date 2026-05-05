@@ -34,7 +34,7 @@ The future scale model is cell-based: each cell contains Git gateway nodes, repo
 - `Vela.Agents.SignatureVerifier`: signed agent identity verification boundary.
 - `Vela.Crypto`: AES-GCM token encryption helper for integration secrets.
 - `Vela.RateLimit`: in-node fixed-window limiter foundation for org/user/token gates.
-- `Vela.Git.GitHubClient`: GitHub REST import/ref/compare adapter using `Req`.
+- `Vela.Git.GitHubClient`: GitHub REST import/ref/compare/comment adapter using `Req`.
 - `Vela.Storage.S3ObjectStore`: S3-compatible object store with AWS SigV4 signed PUT and presigned GET support.
 
 ## Runtime Configuration

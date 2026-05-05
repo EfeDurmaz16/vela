@@ -31,6 +31,41 @@ paths:
       summary: List repositories
       responses:
         "200": { $ref: "#/components/responses/Collection" }
+    post:
+      summary: Create a repository in the authenticated organization
+      responses:
+        "201": { $ref: "#/components/responses/Object" }
+        "422": { $ref: "#/components/responses/Error" }
+  /repos/import:
+    post:
+      summary: Create or reuse a GitHub import placeholder and queue import
+      responses:
+        "202": { $ref: "#/components/responses/JobAccepted" }
+        "422": { $ref: "#/components/responses/Error" }
+  /repos/{id}:
+    get:
+      summary: Read a repository in the authenticated organization
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Object" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      summary: Update a repository in the authenticated organization
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Object" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Delete a repository in the authenticated organization
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "404": { $ref: "#/components/responses/Error" }
   /repos/{id}/import:
     post:
       summary: Queue a repository import
@@ -39,6 +74,14 @@ paths:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200": { $ref: "#/components/responses/JobAccepted" }
+  /repos/{id}/readiness:
+    get:
+      summary: Read repository readiness summary
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Object" }
+        "404": { $ref: "#/components/responses/Error" }
   /repos/{id}/trust:
     get:
       summary: Read repository trust signals
@@ -63,6 +106,15 @@ paths:
       summary: List pull requests
       responses:
         "200": { $ref: "#/components/responses/Collection" }
+  /pull-requests/{id}/comments:
+    post:
+      summary: Create a local PR comment and optionally publish to GitHub
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201": { $ref: "#/components/responses/Object" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
   /agents:
     get:
       summary: List agent actors
@@ -222,6 +274,15 @@ components:
             required: [data]
             properties:
               data: { type: object }
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: { type: object }
     JobAccepted:
       description: Expensive work accepted as a job
       content:
