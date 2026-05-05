@@ -15,6 +15,7 @@ defmodule VelaWeb.ApiSurfaceTest do
       {"PUT", "/api/v1/repos/:id"},
       {"DELETE", "/api/v1/repos/:id"},
       {"POST", "/api/v1/repos/:id/import"},
+      {"POST", "/api/v1/repos/:id/sync-pull-request"},
       {"GET", "/api/v1/repos/:id/readiness"},
       {"GET", "/api/v1/repos/:id/trust"},
       {"GET", "/api/v1/changes"},

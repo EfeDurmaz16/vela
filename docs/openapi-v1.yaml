@@ -82,6 +82,16 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Object" }
         "404": { $ref: "#/components/responses/Error" }
+  /repos/{id}/sync-pull-request:
+    post:
+      summary: Queue sync of a GitHub pull request into local forge state
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202": { $ref: "#/components/responses/JobAccepted" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
   /repos/{id}/trust:
     get:
       summary: Read repository trust signals
