@@ -1,7 +1,7 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Webhooks}
   alias Vela.Repo
 
   import Ecto.Query
@@ -122,25 +122,39 @@ defmodule VelaWeb.Api.V1.FoundationController do
         %{"provider" => provider, "organization_id" => organization_id, "actor_id" => actor_id} =
           params
       ) do
-    {:ok, event} =
-      Integrations.record_event(%{
-        provider: provider,
-        organization_id: organization_id,
-        actor_id: actor_id,
-        repository_id: Map.get(params, "repository_id"),
-        resource_type: "integration",
-        payload: Map.drop(params, ["provider", "organization_id", "actor_id", "repository_id"])
-      })
-
-    conn
-    |> put_status(:accepted)
-    |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: event.id}})
+    with :ok <- Webhooks.verify_provider_request(provider, conn),
+         {:ok, event} <-
+           Integrations.record_event(%{
+             provider: provider,
+             organization_id: organization_id,
+             actor_id: actor_id,
+             repository_id: Map.get(params, "repository_id"),
+             resource_type: "integration",
+             payload:
+               Map.drop(params, ["provider", "organization_id", "actor_id", "repository_id"])
+           }) do
+      conn
+      |> put_status(:accepted)
+      |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: event.id}})
+    else
+      {:error, reason} ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{error: %{code: "webhook_verification_failed", reason: to_string(reason)}})
+    end
   end
 
   def webhook(conn, %{"provider" => provider}) do
-    conn
-    |> put_status(:accepted)
-    |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: nil}})
+    with :ok <- Webhooks.verify_provider_request(provider, conn) do
+      conn
+      |> put_status(:accepted)
+      |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: nil}})
+    else
+      {:error, reason} ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{error: %{code: "webhook_verification_failed", reason: to_string(reason)}})
+    end
   end
 
   defp paged(conn, entries, params) do

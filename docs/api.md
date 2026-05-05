@@ -40,7 +40,7 @@ Operational endpoints:
 - `GET /ready`
 - `GET /metrics`
 
-Webhook events include `repo.push`, `pull_request.opened`, `pull_request.updated`, `analysis.completed`, `score.changed`, `merge.blocked`, `merge.completed` and `deployment.ready`. Signed webhook helpers use HMAC-SHA256 over `timestamp.body` with constant-time comparison.
+Webhook events include `repo.push`, `pull_request.opened`, `pull_request.updated`, `analysis.completed`, `score.changed`, `merge.blocked`, `merge.completed` and `deployment.ready`. Signed webhook helpers use HMAC-SHA256 over `timestamp.body` with constant-time comparison. When a provider secret is configured, webhook requests must include `x-vela-timestamp` and `x-vela-signature` or the equivalent `x-webhook-*` headers.
 
 WorkOS AuthKit is handled server-side: the login route returns a WorkOS authorization URL and the callback route exchanges the returned code with WorkOS before reconciling Vela user, organization, membership and human actor records.
 

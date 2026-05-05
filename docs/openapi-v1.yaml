@@ -138,13 +138,19 @@ paths:
           in: path
           required: true
           schema: { type: string }
-        - name: Vela-Signature
+        - name: x-vela-timestamp
+          in: header
+          required: false
+          schema: { type: string }
+        - name: x-vela-signature
           in: header
           required: false
           schema: { type: string }
       responses:
         "202":
           description: Accepted for verification and processing
+        "401":
+          description: Webhook signature verification failed
 components:
   parameters:
     Id:

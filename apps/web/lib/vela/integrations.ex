@@ -60,11 +60,13 @@ defmodule Vela.Integrations do
 
   def phase_zero_status do
     %{
-      workos: "interface-defined",
-      github_import: "interface-defined",
-      webhooks: "signature-verification-boundary-defined",
+      workos: "authkit-http-flow-implemented",
+      github_import: "rest-import-and-diff-implemented",
+      webhooks: "signed-ingestion-implemented",
+      object_storage: "s3-sigv4-implemented",
+      agent_identity: "ed25519-verification-implemented",
       adapters: Integration.providers(),
-      production_auth: "planned-phase-1"
+      production_auth: "workos-backed"
     }
   end
 end

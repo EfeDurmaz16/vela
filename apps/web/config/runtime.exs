@@ -36,6 +36,29 @@ config :vela, :object_store,
   access_key_id: System.get_env("S3_ACCESS_KEY_ID"),
   secret_access_key: System.get_env("S3_SECRET_ACCESS_KEY")
 
+webhook_secrets =
+  ~w(vercel supabase neon workos sentry axiom trigger_dev inngest upstash modal stripe cloudflare github)
+  |> Enum.reduce(%{}, fn provider, acc ->
+    env_name = provider |> String.upcase() |> String.replace("-", "_")
+
+    secret =
+      System.get_env("VELA_#{env_name}_WEBHOOK_SECRET") ||
+        System.get_env("#{env_name}_WEBHOOK_SECRET")
+
+    if is_binary(secret) and secret != "" do
+      Map.put(acc, provider, secret)
+    else
+      acc
+    end
+  end)
+
+config :vela, :webhooks,
+  require_signatures?:
+    config_env() == :prod and
+      System.get_env("VELA_ALLOW_UNSIGNED_WEBHOOKS") not in ~w(1 true TRUE),
+  default_secret: System.get_env("VELA_WEBHOOK_SECRET"),
+  secrets: webhook_secrets
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
