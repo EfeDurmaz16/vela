@@ -44,6 +44,7 @@ The future scale model is cell-based: each cell contains Git gateway nodes, repo
 - `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
 - `VELA_WEBHOOK_SECRET` for a shared webhook signing secret, or `VELA_<PROVIDER>_WEBHOOK_SECRET` / `<PROVIDER>_WEBHOOK_SECRET` for provider-specific secrets.
 - `VELA_ALLOW_UNSIGNED_WEBHOOKS=1` can temporarily relax production webhook signature enforcement.
+- `VELA_WEBHOOK_TOLERANCE_SECONDS` controls the replay window for timestamped webhook signatures. The default is 300 seconds.
 
 ## Credential Smoke Checks
 

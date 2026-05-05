@@ -123,6 +123,8 @@ defmodule VelaWeb.Api.V1.FoundationController do
           params
       ) do
     with :ok <- Webhooks.verify_provider_request(provider, conn),
+         :ok <-
+           validate_webhook_context(organization_id, actor_id, Map.get(params, "repository_id")),
          {:ok, event} <-
            Integrations.record_event(%{
              provider: provider,
@@ -141,6 +143,11 @@ defmodule VelaWeb.Api.V1.FoundationController do
         conn
         |> put_status(:unauthorized)
         |> json(%{error: %{code: "webhook_verification_failed", reason: to_string(reason)}})
+
+      {:invalid_context, reason} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: %{code: "webhook_context_invalid", reason: to_string(reason)}})
     end
   end
 
@@ -183,5 +190,23 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   defp job_payload(%Oban.Job{} = job) do
     %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
+  end
+
+  defp validate_webhook_context(organization_id, actor_id, repository_id) do
+    with true <- resource_belongs_to?(Vela.Actors.Actor, actor_id, organization_id),
+         true <-
+           is_nil(repository_id) or
+             resource_belongs_to?(Vela.Forge.Repository, repository_id, organization_id) do
+      :ok
+    else
+      _ -> {:invalid_context, :tenant_mismatch}
+    end
+  end
+
+  defp resource_belongs_to?(schema, id, organization_id) do
+    case Repo.get(schema, id) do
+      %{organization_id: ^organization_id} -> true
+      _ -> false
+    end
   end
 end

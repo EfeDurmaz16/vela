@@ -28,7 +28,7 @@ defmodule Vela.Webhooks do
       is_binary(secret) and secret != "" ->
         provider
         |> normalize_provider()
-        |> verify_provider_signature(secret, conn, body)
+        |> verify_provider_signature(secret, conn, body, config)
 
       require_signatures? ->
         {:error, :missing_webhook_secret}
@@ -50,17 +50,18 @@ defmodule Vela.Webhooks do
 
   def verify_signature(_, _, _, _), do: {:error, :invalid_signature}
 
-  defp verify_provider_signature("github", secret, conn, body) do
+  defp verify_provider_signature("github", secret, conn, body, _config) do
     case first_header(conn, [@github_signature_header]) do
       "sha256=" <> signature -> verify_hex_hmac(secret, body, signature)
       _ -> verify_generic_signature(secret, conn, body)
     end
   end
 
-  defp verify_provider_signature("stripe", secret, conn, body) do
+  defp verify_provider_signature("stripe", secret, conn, body, config) do
     with signature_header when is_binary(signature_header) <-
            first_header(conn, [@stripe_signature_header]),
          {:ok, timestamp, signatures} <- parse_timestamp_signature_header(signature_header),
+         :ok <- verify_timestamp(timestamp, config, :seconds),
          [_ | _] <- signatures do
       signed_payload = timestamp <> "." <> body
       expected = hex_hmac(secret, signed_payload)
@@ -71,14 +72,16 @@ defmodule Vela.Webhooks do
         {:error, :invalid_signature}
       end
     else
-      _ -> verify_generic_signature(secret, conn, body)
+      {:error, :stale_timestamp} -> {:error, :stale_timestamp}
+      _ -> verify_generic_signature(secret, conn, body, config)
     end
   end
 
-  defp verify_provider_signature("workos", secret, conn, body) do
+  defp verify_provider_signature("workos", secret, conn, body, config) do
     with signature_header when is_binary(signature_header) <-
            first_header(conn, [@workos_signature_header]),
          {:ok, timestamp, signatures} <- parse_timestamp_signature_header(signature_header),
+         :ok <- verify_timestamp(timestamp, config, :milliseconds),
          [_ | _] <- signatures do
       signed_payload = timestamp <> "." <> body
       expected = hex_hmac(secret, signed_payload)
@@ -89,24 +92,26 @@ defmodule Vela.Webhooks do
         {:error, :invalid_signature}
       end
     else
-      _ -> verify_svix_signature(secret, conn, body)
+      {:error, :stale_timestamp} -> {:error, :stale_timestamp}
+      _ -> verify_svix_signature(secret, conn, body, config)
     end
   end
 
-  defp verify_provider_signature("svix", secret, conn, body) do
-    verify_svix_signature(secret, conn, body)
+  defp verify_provider_signature("svix", secret, conn, body, config) do
+    verify_svix_signature(secret, conn, body, config)
   end
 
-  defp verify_provider_signature(_, secret, conn, body) do
-    verify_generic_signature(secret, conn, body)
+  defp verify_provider_signature(_, secret, conn, body, config) do
+    verify_generic_signature(secret, conn, body, config)
   end
 
-  defp verify_svix_signature(secret, conn, body) do
+  defp verify_svix_signature(secret, conn, body, config) do
     with message_id when is_binary(message_id) <- first_header(conn, [@svix_id_header]),
          timestamp when is_binary(timestamp) <- first_header(conn, [@svix_timestamp_header]),
          signature_header when is_binary(signature_header) <-
            first_header(conn, [@svix_signature_header]),
          {:ok, signing_secret} <- svix_signing_secret(secret),
+         :ok <- verify_timestamp(timestamp, config, :seconds),
          [_ | _] = signatures <- parse_svix_signature_header(signature_header) do
       signed_payload = message_id <> "." <> timestamp <> "." <> body
       expected = Base.encode64(:crypto.mac(:hmac, :sha256, signing_secret, signed_payload))
@@ -117,17 +122,17 @@ defmodule Vela.Webhooks do
         {:error, :invalid_signature}
       end
     else
-      _ -> verify_generic_signature(secret, conn, body)
+      {:error, :stale_timestamp} -> {:error, :stale_timestamp}
+      _ -> verify_generic_signature(secret, conn, body, config)
     end
   end
 
-  defp verify_generic_signature(secret, conn, body) do
-    verify_signature(
-      secret,
-      first_header(conn, @timestamp_headers),
-      body,
-      first_header(conn, @signature_headers)
-    )
+  defp verify_generic_signature(secret, conn, body, config \\ []) do
+    timestamp = first_header(conn, @timestamp_headers)
+
+    with :ok <- verify_timestamp(timestamp, config, :seconds) do
+      verify_signature(secret, timestamp, body, first_header(conn, @signature_headers))
+    end
   end
 
   defp verify_hex_hmac(secret, signed_payload, signature) do
@@ -189,6 +194,32 @@ defmodule Vela.Webhooks do
   defp hex_hmac(secret, signed_payload) do
     :crypto.mac(:hmac, :sha256, secret, signed_payload)
     |> Base.encode16(case: :lower)
+  end
+
+  defp verify_timestamp(timestamp, config, unit) do
+    case Keyword.get(config, :tolerance_seconds) do
+      tolerance when is_integer(tolerance) and tolerance > 0 ->
+        with {timestamp, ""} <- Integer.parse(to_string(timestamp)),
+             timestamp <- normalize_timestamp(timestamp, unit),
+             true <- abs(now(config) - timestamp) <= tolerance do
+          :ok
+        else
+          _ -> {:error, :stale_timestamp}
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp normalize_timestamp(timestamp, :milliseconds), do: div(timestamp, 1_000)
+  defp normalize_timestamp(timestamp, :seconds), do: timestamp
+
+  defp now(config) do
+    case Keyword.get(config, :now) do
+      fun when is_function(fun, 0) -> fun.()
+      _ -> System.system_time(:second)
+    end
   end
 
   defp secure_compare(expected, actual)

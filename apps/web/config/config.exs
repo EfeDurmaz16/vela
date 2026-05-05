@@ -63,7 +63,7 @@ config :vela, Oban,
     default: 5
   ]
 
-config :vela, :webhooks, require_signatures?: false, secrets: %{}
+config :vela, :webhooks, require_signatures?: false, tolerance_seconds: 300, secrets: %{}
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -56,6 +56,7 @@ config :vela, :webhooks,
   require_signatures?:
     config_env() == :prod and
       System.get_env("VELA_ALLOW_UNSIGNED_WEBHOOKS") not in ~w(1 true TRUE),
+  tolerance_seconds: String.to_integer(System.get_env("VELA_WEBHOOK_TOLERANCE_SECONDS") || "300"),
   default_secret: System.get_env("VELA_WEBHOOK_SECRET"),
   secrets: webhook_secrets
 

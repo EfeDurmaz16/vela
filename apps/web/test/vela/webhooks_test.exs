@@ -76,6 +76,27 @@ defmodule Vela.WebhooksTest do
              Webhooks.verify_provider_request("stripe", invalid_conn)
   end
 
+  test "rejects Stripe signatures outside the configured replay window" do
+    body = ~s({"id":"evt_old","type":"checkout.session.completed"})
+    secret = "whsec_stripe"
+    timestamp = "1777990000"
+    signature = hex_hmac(secret, timestamp <> "." <> body)
+
+    conn =
+      provider_conn(body)
+      |> put_req_header("stripe-signature", "t=#{timestamp},v1=#{signature}")
+
+    Application.put_env(:vela, :webhooks,
+      require_signatures?: true,
+      tolerance_seconds: 300,
+      now: fn -> 1_778_000_000 end,
+      secrets: %{"stripe" => secret}
+    )
+
+    assert {:error, :stale_timestamp} ==
+             Webhooks.verify_provider_request("stripe", conn)
+  end
+
   test "verifies WorkOS workos-signature headers" do
     body = ~s({"event":"user.created"})
     secret = "workos_secret"
@@ -164,6 +185,28 @@ defmodule Vela.WebhooksTest do
     )
 
     assert :ok == Webhooks.verify_provider_request("vercel", conn)
+  end
+
+  test "rejects generic signatures outside the configured replay window" do
+    body = ~s({"event":"deployment.ready"})
+    timestamp = "1777990000"
+    secret = "generic_secret"
+    signature = Webhooks.sign(secret, timestamp, body)
+
+    conn =
+      provider_conn(body)
+      |> put_req_header("x-vela-timestamp", timestamp)
+      |> put_req_header("x-vela-signature", signature)
+
+    Application.put_env(:vela, :webhooks,
+      require_signatures?: true,
+      tolerance_seconds: 300,
+      now: fn -> 1_778_000_000 end,
+      secrets: %{"vercel" => secret}
+    )
+
+    assert {:error, :stale_timestamp} ==
+             Webhooks.verify_provider_request("vercel", conn)
   end
 
   defp provider_conn(body) do

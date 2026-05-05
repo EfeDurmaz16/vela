@@ -1,7 +1,7 @@
 defmodule VelaWeb.IntegrationWebhookTest do
   use VelaWeb.ConnCase, async: false
 
-  alias Vela.{Accounts, Actors, Evidence, Webhooks}
+  alias Vela.{Accounts, Actors, Evidence, Forge, Webhooks}
 
   setup do
     previous = Application.get_env(:vela, :webhooks)
@@ -94,5 +94,76 @@ defmodule VelaWeb.IntegrationWebhookTest do
       |> json_response(401)
 
     assert %{"error" => %{"code" => "webhook_verification_failed"}} = response
+  end
+
+  test "provider webhook rejects actor context outside the supplied organization", %{conn: conn} do
+    {:ok, org} = Accounts.create_organization(%{name: "Webhook Org A", slug: "webhook-org-a"})
+
+    {:ok, other_org} =
+      Accounts.create_organization(%{name: "Webhook Org B", slug: "webhook-org-b"})
+
+    {:ok, actor} =
+      Actors.create_actor(%{
+        organization_id: other_org.id,
+        type: "integration",
+        display_name: "Vercel",
+        trust_level: "trusted"
+      })
+
+    response =
+      conn
+      |> post(~p"/api/v1/webhooks/vercel", %{
+        organization_id: org.id,
+        actor_id: actor.id,
+        type: "deployment.ready",
+        id: "evt_wrong_actor"
+      })
+      |> json_response(403)
+
+    assert %{"error" => %{"code" => "webhook_context_invalid"}} = response
+    assert Evidence.list_recent_events(1) == []
+  end
+
+  test "provider webhook rejects repository context outside the supplied organization", %{
+    conn: conn
+  } do
+    {:ok, org} =
+      Accounts.create_organization(%{name: "Webhook Repo Org A", slug: "webhook-repo-org-a"})
+
+    {:ok, other_org} =
+      Accounts.create_organization(%{name: "Webhook Repo Org B", slug: "webhook-repo-org-b"})
+
+    {:ok, actor} =
+      Actors.create_actor(%{
+        organization_id: org.id,
+        type: "integration",
+        display_name: "Vercel",
+        trust_level: "trusted"
+      })
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: other_org.id,
+        name: "other-core",
+        slug: "other-core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low"
+      })
+
+    response =
+      conn
+      |> post(~p"/api/v1/webhooks/vercel", %{
+        organization_id: org.id,
+        actor_id: actor.id,
+        repository_id: repo.id,
+        type: "deployment.ready",
+        id: "evt_wrong_repo"
+      })
+      |> json_response(403)
+
+    assert %{"error" => %{"code" => "webhook_context_invalid"}} = response
+    assert Evidence.list_recent_events(1) == []
   end
 end
