@@ -140,6 +140,30 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end
   end
 
+  def sync_pull_request(conn, %{"id" => id, "number" => number}) do
+    with {:ok, repository} <- fetch_repo(conn, id),
+         {:ok, number} <- parse_positive_integer(number) do
+      idempotent_json(conn, repository.organization_id, fn ->
+        {:ok, job} =
+          Jobs.enqueue(:repo_sync, %{
+            organization_id: repository.organization_id,
+            repository_id: repository.id,
+            actor_id: conn.assigns.current_actor.id,
+            provider: repository.provider || "github",
+            pull_request_number: number
+          })
+
+        {202, %{data: %{repository_id: id, job: job_payload(job)}}}
+      end)
+    else
+      {:error, :not_found} ->
+        repo_not_found(conn)
+
+      {:error, :invalid_number} ->
+        validation_error(conn, %{errors: %{number: ["must be a positive integer"]}})
+    end
+  end
+
   def create_pr_comment(conn, %{"id" => id, "body" => body} = params) do
     with {:ok, pull_request} <- fetch_pull_request(conn, id),
          {:ok, review} <-
@@ -500,11 +524,28 @@ defmodule VelaWeb.Api.V1.FoundationController do
   end
 
   defp errors_on(changeset) do
+    if is_map(changeset) and Map.has_key?(changeset, :errors) do
+      changeset.errors
+    else
+      traverse_errors(changeset)
+    end
+  end
+
+  defp traverse_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
       Enum.reduce(opts, message, fn {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
     end)
+  end
+
+  defp parse_positive_integer(value) when is_integer(value) and value > 0, do: {:ok, value}
+
+  defp parse_positive_integer(value) do
+    case Integer.parse(to_string(value)) do
+      {number, ""} when number > 0 -> {:ok, number}
+      _ -> {:error, :invalid_number}
+    end
   end
 
   defp job_payload(%Oban.Job{} = job) do

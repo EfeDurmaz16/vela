@@ -232,6 +232,38 @@ defmodule VelaWeb.RepositoryCrudTest do
     assert repo_id == repo.id
   end
 
+  test "authenticated users can queue GitHub pull request sync", %{conn: conn} do
+    {:ok, org} = Accounts.create_organization(%{name: "PR Sync API Org", slug: "pr-sync-api-org"})
+    session = auth_session_for_org!(org, "pr-sync-api")
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "core",
+        slug: "core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low",
+        provider: "github",
+        full_name: "vela/core",
+        import_status: "imported"
+      })
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos/#{repo.id}/sync-pull-request", %{number: 17})
+      |> json_response(202)
+
+    assert %{"data" => %{"job" => %{"kind" => "repo_sync", "status" => "queued"}}} = response
+
+    assert [%Oban.Job{args: %{"pull_request_number" => 17, "repository_id" => repo_id}}] =
+             Oban.Job |> Repo.all()
+
+    assert repo_id == repo.id
+  end
+
   defp auth_session_for_org!(org, suffix) do
     {:ok, user} =
       Accounts.create_user(%{
