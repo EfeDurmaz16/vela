@@ -117,10 +117,30 @@ defmodule VelaWeb.Api.V1.FoundationController do
     |> json(%{data: %{merge_candidate_id: id, job: job_payload(job)}})
   end
 
+  def webhook(
+        conn,
+        %{"provider" => provider, "organization_id" => organization_id, "actor_id" => actor_id} =
+          params
+      ) do
+    {:ok, event} =
+      Integrations.record_event(%{
+        provider: provider,
+        organization_id: organization_id,
+        actor_id: actor_id,
+        repository_id: Map.get(params, "repository_id"),
+        resource_type: "integration",
+        payload: Map.drop(params, ["provider", "organization_id", "actor_id", "repository_id"])
+      })
+
+    conn
+    |> put_status(:accepted)
+    |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: event.id}})
+  end
+
   def webhook(conn, %{"provider" => provider}) do
     conn
     |> put_status(:accepted)
-    |> json(%{data: %{provider: provider, accepted: true}})
+    |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: nil}})
   end
 
   defp paged(conn, entries, params) do

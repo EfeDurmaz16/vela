@@ -6,6 +6,7 @@ defmodule Vela.Evidence.EvidenceEvent do
     review.submitted agent.session.started agent.session.completed analysis.started
     analysis.completed score.computed policy.evaluated merge.simulated merge.queued
     merge.completed merge.blocked deployment.approved deployment.blocked
+    integration.event_received
   )
 
   schema "evidence_events" do
