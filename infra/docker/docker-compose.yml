@@ -9,6 +9,18 @@ services:
       - "5432:5432"
     volumes:
       - vela-postgres:/var/lib/postgresql/data
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-06-13T11-33-47Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: vela
+      MINIO_ROOT_PASSWORD: vela-local-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - vela-minio:/data
 
 volumes:
   vela-postgres:
+  vela-minio:

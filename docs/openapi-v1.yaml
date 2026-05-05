@@ -1,0 +1,192 @@
+openapi: 3.1.0
+info:
+  title: Vela API
+  version: 0.1.0
+  description: Trust-first software forge backend API draft.
+servers:
+  - url: /api/v1
+paths:
+  /orgs:
+    get:
+      summary: List organizations visible to the caller
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /repos:
+    get:
+      summary: List repositories
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /repos/{id}/import:
+    post:
+      summary: Queue a repository import
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { $ref: "#/components/responses/JobAccepted" }
+  /repos/{id}/trust:
+    get:
+      summary: Read repository trust signals
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Object" }
+  /changes:
+    get:
+      summary: List changes
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /changes/{id}/readiness:
+    get:
+      summary: List readiness scores for a change
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /pull-requests:
+    get:
+      summary: List pull requests
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /agents:
+    get:
+      summary: List agent actors
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /agents/{id}/sessions:
+    get:
+      summary: List sessions for an agent
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /agents/{id}/policies:
+    get:
+      summary: List policies for an agent
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /analysis-runs:
+    get:
+      summary: List analysis runs
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /readiness-scores:
+    get:
+      summary: List readiness scores
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /merge-candidates:
+    get:
+      summary: List merge candidates
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /merge-candidates/{id}/simulate:
+    post:
+      summary: Queue merge simulation
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { $ref: "#/components/responses/JobAccepted" }
+  /releases:
+    get:
+      summary: List release candidates
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /evidence-events:
+    get:
+      summary: List evidence events
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /integrations:
+    get:
+      summary: List integrations
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /service-connections:
+    get:
+      summary: List service connections
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /environments:
+    get:
+      summary: List environments
+      responses:
+        "200": { $ref: "#/components/responses/Collection" }
+  /webhooks/{provider}:
+    post:
+      summary: Receive a signed provider webhook
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+        - name: Vela-Signature
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        "202":
+          description: Accepted for verification and processing
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, minLength: 8, maxLength: 255 }
+  responses:
+    Collection:
+      description: Collection envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, pagination]
+            properties:
+              data:
+                type: array
+                items: { type: object }
+              pagination:
+                $ref: "#/components/schemas/Pagination"
+    Object:
+      description: Object envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: { type: object }
+    JobAccepted:
+      description: Expensive work accepted as a job
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [job]
+                properties:
+                  job:
+                    type: object
+                    required: [status, kind]
+                    properties:
+                      status: { type: string, enum: [queued] }
+                      kind: { type: string }
+  schemas:
+    Pagination:
+      type: object
+      required: [limit, returned]
+      properties:
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        returned: { type: integer, minimum: 0 }
