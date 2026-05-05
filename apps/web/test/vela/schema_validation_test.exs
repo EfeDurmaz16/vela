@@ -68,4 +68,26 @@ defmodule Vela.SchemaValidationTest do
     assert Ecto.Changeset.get_field(changeset, :import_status) == "imported"
     assert Ecto.Changeset.get_field(changeset, :imported_at) == imported_at
   end
+
+  test "pull request schema stores provider metadata for GitHub operations" do
+    changeset =
+      PullRequest.changeset(%PullRequest{}, %{
+        repository_id: Ecto.UUID.generate(),
+        author_actor_id: Ecto.UUID.generate(),
+        title: "Change",
+        source_branch: "feature",
+        target_branch: "main",
+        head_sha: "head",
+        base_sha: "base",
+        status: "ready_for_review",
+        provider: "github",
+        external_id: "987",
+        external_number: 17,
+        html_url: "https://github.com/vela/core/pull/17"
+      })
+
+    assert changeset.valid?
+    assert Ecto.Changeset.get_field(changeset, :provider) == "github"
+    assert Ecto.Changeset.get_field(changeset, :external_number) == 17
+  end
 end

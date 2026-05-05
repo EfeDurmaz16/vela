@@ -3,6 +3,7 @@ defmodule Vela.Forge.PullRequest do
 
   @statuses ~w(draft open ready_for_review blocked approved queued merged closed)
   @risk_levels ~w(low medium high critical)
+  @providers ~w(github)
 
   schema "pull_requests" do
     field :title, :string
@@ -15,6 +16,10 @@ defmodule Vela.Forge.PullRequest do
     field :intent, :string
     field :behavioral_summary, :string
     field :risk_level, :string, default: "medium"
+    field :provider, :string
+    field :external_id, :string
+    field :external_number, :integer
+    field :html_url, :string
     field :readiness_score_id, :binary_id
     field :merge_candidate_id, :binary_id
 
@@ -45,6 +50,10 @@ defmodule Vela.Forge.PullRequest do
       :intent,
       :behavioral_summary,
       :risk_level,
+      :provider,
+      :external_id,
+      :external_number,
+      :html_url,
       :readiness_score_id,
       :merge_candidate_id
     ])
@@ -60,5 +69,13 @@ defmodule Vela.Forge.PullRequest do
     ])
     |> Vela.Validation.validate_inclusion(:status, @statuses)
     |> Vela.Validation.validate_inclusion(:risk_level, @risk_levels)
+    |> validate_provider()
+  end
+
+  defp validate_provider(changeset) do
+    case get_field(changeset, :provider) do
+      nil -> changeset
+      _ -> Vela.Validation.validate_inclusion(changeset, :provider, @providers)
+    end
   end
 end
