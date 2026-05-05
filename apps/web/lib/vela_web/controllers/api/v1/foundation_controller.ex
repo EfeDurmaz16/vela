@@ -1,0 +1,122 @@
+defmodule VelaWeb.Api.V1.FoundationController do
+  use VelaWeb, :controller
+
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations}
+  alias Vela.Repo
+
+  import Ecto.Query
+
+  def orgs(conn, params), do: paged(conn, Accounts.list_organizations(), params)
+  def repos(conn, params), do: paged(conn, Forge.list_repositories(), params)
+  def changes(conn, params), do: paged(conn, Forge.list_changes(), params)
+  def pull_requests(conn, params), do: paged(conn, Forge.list_pull_requests(), params)
+  def agents(conn, params), do: paged(conn, Agents.list_agent_profiles(), params)
+
+  def evidence_events(conn, params),
+    do: paged(conn, Evidence.list_recent_events(page_size(params)), params)
+
+  def integrations(conn, params), do: paged(conn, Integrations.list_integrations(), params)
+
+  def service_connections(conn, params),
+    do: paged(conn, Integrations.list_service_connections(), params)
+
+  def environments(conn, params), do: paged(conn, Integrations.list_environments(), params)
+
+  def analysis_runs(conn, params) do
+    runs = Vela.Maestro.AnalysisRun |> order_by([r], desc: r.inserted_at) |> Repo.all()
+    paged(conn, runs, params)
+  end
+
+  def readiness_scores(conn, params) do
+    scores = Vela.Maestro.ReadinessScore |> order_by([s], desc: s.inserted_at) |> Repo.all()
+    paged(conn, scores, params)
+  end
+
+  def merge_candidates(conn, params) do
+    candidates = Vela.Merge.MergeCandidate |> order_by([c], desc: c.inserted_at) |> Repo.all()
+    paged(conn, candidates, params)
+  end
+
+  def releases(conn, params) do
+    releases = Vela.Releases.ReleaseCandidate |> order_by([r], desc: r.inserted_at) |> Repo.all()
+    paged(conn, releases, params)
+  end
+
+  def repo_trust(conn, %{"id" => id}) do
+    json(conn, %{
+      data: %{
+        repository_id: id,
+        signals: Enum.map(Forge.list_repository_trust_signals(id), &serialize/1)
+      }
+    })
+  end
+
+  def change_readiness(conn, %{"id" => id}) do
+    scores =
+      Vela.Maestro.ReadinessScore
+      |> where([s], s.change_id == ^id)
+      |> order_by([s], desc: s.inserted_at)
+      |> Repo.all()
+
+    json(conn, %{data: Enum.map(scores, &serialize/1)})
+  end
+
+  def agent_sessions(conn, %{"id" => id} = params) do
+    sessions =
+      Vela.Agents.AgentSession
+      |> where([s], s.agent_actor_id == ^id)
+      |> order_by([s], desc: s.started_at)
+      |> Repo.all()
+
+    paged(conn, sessions, params)
+  end
+
+  def agent_policies(conn, %{"id" => id} = params) do
+    policies =
+      Vela.Agents.AgentPolicy
+      |> where([p], p.actor_id == ^id)
+      |> order_by([p], asc: p.name)
+      |> Repo.all()
+
+    paged(conn, policies, params)
+  end
+
+  def import_repo(conn, %{"id" => id}) do
+    json(conn, %{data: %{repository_id: id, job: %{status: "queued", kind: "repo_import"}}})
+  end
+
+  def simulate_merge(conn, %{"id" => id}) do
+    json(conn, %{
+      data: %{merge_candidate_id: id, job: %{status: "queued", kind: "merge_simulation"}}
+    })
+  end
+
+  def webhook(conn, %{"provider" => provider}) do
+    conn
+    |> put_status(:accepted)
+    |> json(%{data: %{provider: provider, accepted: true}})
+  end
+
+  defp paged(conn, entries, params) do
+    page_size = page_size(params)
+
+    json(conn, %{
+      data: entries |> Enum.take(page_size) |> Enum.map(&serialize/1),
+      pagination: %{limit: page_size, returned: min(length(entries), page_size)}
+    })
+  end
+
+  defp page_size(params) do
+    case Integer.parse(to_string(Map.get(params, "limit", "25"))) do
+      {limit, ""} when limit > 0 and limit <= 100 -> limit
+      _ -> 25
+    end
+  end
+
+  defp serialize(%schema{} = struct) do
+    struct
+    |> Map.from_struct()
+    |> Map.drop([:__meta__, :organization, :repository, :actor, :author_actor])
+    |> Map.put(:type, schema |> Module.split() |> List.last() |> Macro.underscore())
+  end
+end

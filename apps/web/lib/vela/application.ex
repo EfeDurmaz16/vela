@@ -10,6 +10,7 @@ defmodule Vela.Application do
     children = [
       VelaWeb.Telemetry,
       Vela.Repo,
+      {Oban, Application.fetch_env!(:vela, Oban)},
       {DNSCluster, query: Application.get_env(:vela, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Vela.PubSub},
       # Start a worker by calling: Vela.Worker.start_link(arg)

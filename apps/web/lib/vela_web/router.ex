@@ -28,6 +28,37 @@ defmodule VelaWeb.Router do
     live "/settings", AppLive, :settings
   end
 
+  scope "/", VelaWeb do
+    get "/health", HealthController, :health
+    get "/ready", HealthController, :ready
+    get "/metrics", HealthController, :metrics
+  end
+
+  scope "/api/v1", VelaWeb.Api.V1 do
+    pipe_through :api
+
+    get "/orgs", FoundationController, :orgs
+    get "/repos", FoundationController, :repos
+    post "/repos/:id/import", FoundationController, :import_repo
+    get "/repos/:id/trust", FoundationController, :repo_trust
+    get "/changes", FoundationController, :changes
+    get "/changes/:id/readiness", FoundationController, :change_readiness
+    get "/pull-requests", FoundationController, :pull_requests
+    get "/agents", FoundationController, :agents
+    get "/agents/:id/sessions", FoundationController, :agent_sessions
+    get "/agents/:id/policies", FoundationController, :agent_policies
+    get "/analysis-runs", FoundationController, :analysis_runs
+    get "/readiness-scores", FoundationController, :readiness_scores
+    get "/merge-candidates", FoundationController, :merge_candidates
+    post "/merge-candidates/:id/simulate", FoundationController, :simulate_merge
+    get "/releases", FoundationController, :releases
+    get "/evidence-events", FoundationController, :evidence_events
+    get "/integrations", FoundationController, :integrations
+    get "/service-connections", FoundationController, :service_connections
+    get "/environments", FoundationController, :environments
+    post "/webhooks/:provider", FoundationController, :webhook
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", VelaWeb do
   #   pipe_through :api
