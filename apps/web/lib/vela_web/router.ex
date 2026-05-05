@@ -14,6 +14,14 @@ defmodule VelaWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :api_session do
+    plug :fetch_session
+  end
+
+  pipeline :authenticated_api do
+    plug VelaWeb.Plugs.ApiAuth
+  end
+
   scope "/", VelaWeb do
     pipe_through :browser
 
@@ -38,10 +46,7 @@ defmodule VelaWeb.Router do
     pipe_through :api
 
     get "/orgs", FoundationController, :orgs
-    get "/auth/workos/login", WorkOSAuthController, :login
-    get "/auth/workos/callback", WorkOSAuthController, :callback
     get "/repos", FoundationController, :repos
-    post "/repos/:id/import", FoundationController, :import_repo
     get "/repos/:id/trust", FoundationController, :repo_trust
     get "/changes", FoundationController, :changes
     get "/changes/:id/readiness", FoundationController, :change_readiness
@@ -52,13 +57,26 @@ defmodule VelaWeb.Router do
     get "/analysis-runs", FoundationController, :analysis_runs
     get "/readiness-scores", FoundationController, :readiness_scores
     get "/merge-candidates", FoundationController, :merge_candidates
-    post "/merge-candidates/:id/simulate", FoundationController, :simulate_merge
     get "/releases", FoundationController, :releases
     get "/evidence-events", FoundationController, :evidence_events
     get "/integrations", FoundationController, :integrations
     get "/service-connections", FoundationController, :service_connections
     get "/environments", FoundationController, :environments
     post "/webhooks/:provider", FoundationController, :webhook
+  end
+
+  scope "/api/v1", VelaWeb.Api.V1 do
+    pipe_through [:api, :api_session]
+
+    get "/auth/workos/login", WorkOSAuthController, :login
+    get "/auth/workos/callback", WorkOSAuthController, :callback
+  end
+
+  scope "/api/v1", VelaWeb.Api.V1 do
+    pipe_through [:api, :api_session, :authenticated_api]
+
+    post "/repos/:id/import", FoundationController, :import_repo
+    post "/merge-candidates/:id/simulate", FoundationController, :simulate_merge
   end
 
   # Other scopes may use custom stacks.

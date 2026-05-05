@@ -3,6 +3,7 @@ defmodule VelaWeb.Api.V1.WorkOSAuthController do
 
   alias Vela.Auth
   alias Vela.Auth.WorkOS
+  alias VelaWeb.Plugs.ApiAuth
 
   def login(conn, params) do
     config = workos_config()
@@ -34,7 +35,15 @@ defmodule VelaWeb.Api.V1.WorkOSAuthController do
     with {:ok, auth_payload} <- WorkOS.exchange_code(attrs),
          {:ok, %{user: user, organization: org, membership: membership, actor: actor}} <-
            Auth.upsert_workos_identity(auth_payload) do
-      json(conn, %{
+      conn
+      |> configure_session(renew: true)
+      |> put_session(ApiAuth.session_key(), %{
+        "user_id" => user.id,
+        "organization_id" => org.id,
+        "membership_id" => membership.id,
+        "actor_id" => actor.id
+      })
+      |> json(%{
         data: %{
           user_id: user.id,
           organization_id: org.id,

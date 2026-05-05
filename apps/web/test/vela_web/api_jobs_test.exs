@@ -2,9 +2,11 @@ defmodule VelaWeb.ApiJobsTest do
   use VelaWeb.ConnCase, async: true
 
   alias Vela.{Accounts, Actors, Forge, Merge}
+  alias VelaWeb.Plugs.ApiAuth
 
   test "repo import endpoint enqueues a real Oban import job", %{conn: conn} do
     {:ok, org} = Accounts.create_organization(%{name: "Jobs Org", slug: "jobs-org"})
+    session = auth_session_for_org!(org, "jobs")
 
     {:ok, repo} =
       Forge.create_repository(%{
@@ -19,6 +21,7 @@ defmodule VelaWeb.ApiJobsTest do
 
     response =
       conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
       |> post(~p"/api/v1/repos/#{repo.id}/import", %{owner: "vela", repo: "core"})
       |> json_response(202)
 
@@ -37,6 +40,7 @@ defmodule VelaWeb.ApiJobsTest do
 
   test "merge simulation endpoint enqueues a real Oban merge job", %{conn: conn} do
     {:ok, org} = Accounts.create_organization(%{name: "Merge Org", slug: "merge-org"})
+    session = auth_session_for_org!(org, "merge")
 
     {:ok, actor} =
       Actors.create_actor(%{
@@ -80,6 +84,7 @@ defmodule VelaWeb.ApiJobsTest do
 
     response =
       conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
       |> post(~p"/api/v1/merge-candidates/#{candidate.id}/simulate", %{})
       |> json_response(202)
 
@@ -93,5 +98,38 @@ defmodule VelaWeb.ApiJobsTest do
              Vela.Repo.get!(Oban.Job, job_id)
 
     assert candidate_id == candidate.id
+  end
+
+  defp auth_session_for_org!(org, suffix) do
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "api-jobs-#{suffix}@example.com",
+        name: "API Jobs #{suffix}",
+        workos_user_id: "workos_api_jobs_#{suffix}"
+      })
+
+    {:ok, membership} =
+      Accounts.create_membership(%{
+        user_id: user.id,
+        organization_id: org.id,
+        role: "admin"
+      })
+
+    {:ok, actor} =
+      Actors.create_actor(%{
+        organization_id: org.id,
+        created_by_user_id: user.id,
+        type: "human",
+        display_name: user.name,
+        trust_level: "trusted",
+        external_ref: "workos:#{user.workos_user_id}"
+      })
+
+    %{
+      "user_id" => user.id,
+      "organization_id" => org.id,
+      "membership_id" => membership.id,
+      "actor_id" => actor.id
+    }
   end
 end
