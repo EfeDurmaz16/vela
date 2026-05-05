@@ -9,6 +9,10 @@ defmodule Vela.Forge do
   alias Vela.Repo
 
   def create_repository(attrs), do: %Repository{} |> Repository.changeset(attrs) |> Repo.insert()
+
+  def update_repository(%Repository{} = repository, attrs),
+    do: repository |> Repository.changeset(attrs) |> Repo.update()
+
   def create_branch(attrs), do: %Branch{} |> Branch.changeset(attrs) |> Repo.insert()
   def create_change(attrs), do: %Change{} |> Change.changeset(attrs) |> Repo.insert()
 

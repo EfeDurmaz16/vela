@@ -11,6 +11,21 @@ paths:
       summary: List organizations visible to the caller
       responses:
         "200": { $ref: "#/components/responses/Collection" }
+  /auth/workos/login:
+    get:
+      summary: Create a WorkOS AuthKit authorization URL
+      responses:
+        "200": { $ref: "#/components/responses/Object" }
+  /auth/workos/callback:
+    get:
+      summary: Exchange a WorkOS authorization code and reconcile identity
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/Object" }
   /repos:
     get:
       summary: List repositories

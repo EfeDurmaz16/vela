@@ -34,6 +34,14 @@ The future scale model is cell-based: each cell contains Git gateway nodes, repo
 - `Vela.Agents.SignatureVerifier`: signed agent identity verification boundary.
 - `Vela.Crypto`: AES-GCM token encryption helper for integration secrets.
 - `Vela.RateLimit`: in-node fixed-window limiter foundation for org/user/token gates.
+- `Vela.Git.GitHubClient`: GitHub REST import/ref/compare adapter using `Req`.
+- `Vela.Storage.S3ObjectStore`: S3-compatible object store with AWS SigV4 signed PUT and presigned GET support.
+
+## Runtime Configuration
+
+- `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`, `WORKOS_REDIRECT_URI`
+- `GITHUB_TOKEN`
+- `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
 
 ## Request Path
 

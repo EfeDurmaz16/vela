@@ -1,7 +1,7 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs}
   alias Vela.Repo
 
   import Ecto.Query
@@ -82,13 +82,39 @@ defmodule VelaWeb.Api.V1.FoundationController do
   end
 
   def import_repo(conn, %{"id" => id}) do
-    json(conn, %{data: %{repository_id: id, job: %{status: "queued", kind: "repo_import"}}})
+    repository = Repo.get!(Vela.Forge.Repository, id)
+
+    {:ok, job} =
+      Jobs.enqueue(:repo_import, %{
+        organization_id: repository.organization_id,
+        repository_id: repository.id,
+        provider: conn.params["provider"] || "github",
+        owner: conn.params["owner"],
+        repo: conn.params["repo"] || repository.slug
+      })
+
+    conn
+    |> put_status(:accepted)
+    |> json(%{data: %{repository_id: id, job: job_payload(job)}})
   end
 
   def simulate_merge(conn, %{"id" => id}) do
-    json(conn, %{
-      data: %{merge_candidate_id: id, job: %{status: "queued", kind: "merge_simulation"}}
-    })
+    candidate =
+      Vela.Merge.MergeCandidate
+      |> preload(:repository)
+      |> Repo.get!(id)
+
+    {:ok, job} =
+      Jobs.enqueue(:merge_simulation, %{
+        organization_id: candidate.repository.organization_id,
+        repository_id: candidate.repository_id,
+        merge_candidate_id: candidate.id,
+        pull_request_id: candidate.pull_request_id
+      })
+
+    conn
+    |> put_status(:accepted)
+    |> json(%{data: %{merge_candidate_id: id, job: job_payload(job)}})
   end
 
   def webhook(conn, %{"provider" => provider}) do
@@ -116,7 +142,12 @@ defmodule VelaWeb.Api.V1.FoundationController do
   defp serialize(%schema{} = struct) do
     struct
     |> Map.from_struct()
+    |> Map.reject(fn {_key, value} -> match?(%Ecto.Association.NotLoaded{}, value) end)
     |> Map.drop([:__meta__, :organization, :repository, :actor, :author_actor])
     |> Map.put(:type, schema |> Module.split() |> List.last() |> Macro.underscore())
+  end
+
+  defp job_payload(%Oban.Job{} = job) do
+    %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
   end
 end

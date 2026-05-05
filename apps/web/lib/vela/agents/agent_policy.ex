@@ -11,6 +11,7 @@ defmodule Vela.Agents.AgentPolicy do
     field :forbidden_paths, {:array, :string}, default: []
     field :max_pr_size, :integer
     field :requires_human_approval, :boolean, default: true
+    field :can_create_pr, :boolean, default: false
     field :can_merge, :boolean, default: false
     field :can_deploy, :boolean, default: false
     field :status, :string, default: "active"
@@ -33,6 +34,7 @@ defmodule Vela.Agents.AgentPolicy do
       :forbidden_paths,
       :max_pr_size,
       :requires_human_approval,
+      :can_create_pr,
       :can_merge,
       :can_deploy,
       :status

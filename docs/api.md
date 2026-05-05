@@ -12,6 +12,8 @@ The backend exposes a versioned JSON surface under `/api/v1`. Collections return
 Phase 0 route surface:
 
 - `GET /api/v1/orgs`
+- `GET /api/v1/auth/workos/login`
+- `GET /api/v1/auth/workos/callback`
 - `GET /api/v1/repos`
 - `POST /api/v1/repos/:id/import`
 - `GET /api/v1/repos/:id/trust`
@@ -39,5 +41,7 @@ Operational endpoints:
 - `GET /metrics`
 
 Webhook events include `repo.push`, `pull_request.opened`, `pull_request.updated`, `analysis.completed`, `score.changed`, `merge.blocked`, `merge.completed` and `deployment.ready`. Signed webhook helpers use HMAC-SHA256 over `timestamp.body` with constant-time comparison.
+
+WorkOS AuthKit is handled server-side: the login route returns a WorkOS authorization URL and the callback route exchanges the returned code with WorkOS before reconciling Vela user, organization, membership and human actor records.
 
 The OpenAPI draft lives at `docs/openapi-v1.yaml`. Internal sidecar contracts remain under `services/*/README.md` until Rust/Python sidecars are implemented.

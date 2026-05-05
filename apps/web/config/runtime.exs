@@ -22,6 +22,20 @@ end
 
 config :vela, VelaWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+config :vela, :workos,
+  api_key: System.get_env("WORKOS_API_KEY"),
+  client_id: System.get_env("WORKOS_CLIENT_ID"),
+  redirect_uri: System.get_env("WORKOS_REDIRECT_URI")
+
+config :vela, :github, token: System.get_env("GITHUB_TOKEN")
+
+config :vela, :object_store,
+  endpoint: System.get_env("S3_ENDPOINT"),
+  bucket: System.get_env("S3_BUCKET"),
+  region: System.get_env("S3_REGION") || "us-east-1",
+  access_key_id: System.get_env("S3_ACCESS_KEY_ID"),
+  secret_access_key: System.get_env("S3_SECRET_ACCESS_KEY")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

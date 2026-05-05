@@ -38,6 +38,8 @@ defmodule VelaWeb.Router do
     pipe_through :api
 
     get "/orgs", FoundationController, :orgs
+    get "/auth/workos/login", WorkOSAuthController, :login
+    get "/auth/workos/callback", WorkOSAuthController, :callback
     get "/repos", FoundationController, :repos
     post "/repos/:id/import", FoundationController, :import_repo
     get "/repos/:id/trust", FoundationController, :repo_trust

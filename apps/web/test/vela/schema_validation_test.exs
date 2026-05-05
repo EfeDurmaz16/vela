@@ -39,6 +39,7 @@ defmodule Vela.SchemaValidationTest do
 
     assert changeset.valid?
     assert Ecto.Changeset.get_field(changeset, :requires_human_approval) == true
+    assert Ecto.Changeset.get_field(changeset, :can_create_pr) == false
     assert Ecto.Changeset.get_field(changeset, :can_merge) == false
   end
 end
