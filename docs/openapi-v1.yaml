@@ -146,6 +146,42 @@ paths:
           in: header
           required: false
           schema: { type: string }
+        - name: x-webhook-timestamp
+          in: header
+          required: false
+          schema: { type: string }
+        - name: x-webhook-signature
+          in: header
+          required: false
+          schema: { type: string }
+        - name: x-hub-signature-256
+          in: header
+          required: false
+          schema: { type: string }
+          description: GitHub HMAC-SHA256 signature in sha256=<hex> form.
+        - name: stripe-signature
+          in: header
+          required: false
+          schema: { type: string }
+          description: Stripe signature header containing t=<timestamp> and v1=<hex> values.
+        - name: workos-signature
+          in: header
+          required: false
+          schema: { type: string }
+          description: WorkOS signature header containing t=<timestamp> and v1=<hex> values.
+        - name: svix-id
+          in: header
+          required: false
+          schema: { type: string }
+        - name: svix-timestamp
+          in: header
+          required: false
+          schema: { type: string }
+        - name: svix-signature
+          in: header
+          required: false
+          schema: { type: string }
+          description: Svix-style signature header containing one or more v1,<base64> values.
       responses:
         "202":
           description: Accepted for verification and processing
