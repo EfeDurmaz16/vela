@@ -31,7 +31,26 @@ defmodule Vela.Git.GitHubClient do
 
   @impl Vela.Git.GitProvider
   def fetch_pull_request(attrs) do
-    get_json(attrs, "/repos/#{owner(attrs)}/#{repo(attrs)}/pulls/#{Map.fetch!(attrs, :number)}")
+    with {:ok, pr} <-
+           get_json(
+             attrs,
+             "/repos/#{owner(attrs)}/#{repo(attrs)}/pulls/#{Map.fetch!(attrs, :number)}"
+           ) do
+      {:ok,
+       %{
+         external_id: pr["id"],
+         external_number: pr["number"],
+         title: pr["title"],
+         description: pr["body"],
+         html_url: pr["html_url"],
+         status: normalize_pull_request_status(pr),
+         source_branch: get_in(pr, ["head", "ref"]),
+         target_branch: get_in(pr, ["base", "ref"]),
+         head_sha: get_in(pr, ["head", "sha"]),
+         base_sha: get_in(pr, ["base", "sha"]),
+         author_login: get_in(pr, ["user", "login"])
+       }}
+    end
   end
 
   def create_issue_comment(attrs) do
@@ -162,4 +181,10 @@ defmodule Vela.Git.GitHubClient do
       sha: get_in(ref, ["object", "sha"]),
       type: get_in(ref, ["object", "type"])
     }
+
+  defp normalize_pull_request_status(%{"draft" => true}), do: "draft"
+  defp normalize_pull_request_status(%{"state" => "closed", "merged" => true}), do: "merged"
+  defp normalize_pull_request_status(%{"state" => "closed"}), do: "closed"
+  defp normalize_pull_request_status(%{"state" => "open"}), do: "ready_for_review"
+  defp normalize_pull_request_status(_), do: "open"
 end

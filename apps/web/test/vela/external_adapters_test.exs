@@ -104,6 +104,50 @@ defmodule Vela.ExternalAdaptersTest do
     assert html_url =~ "issuecomment-123"
   end
 
+  test "GitHub client normalizes pull request metadata" do
+    transport = fn req ->
+      assert req.method == :get
+      assert req.url.path == "/repos/vela/core/pulls/17"
+
+      {:ok,
+       %{
+         status: 200,
+         body: %{
+           "id" => 987,
+           "number" => 17,
+           "title" => "Improve sync",
+           "body" => "Adds sync",
+           "html_url" => "https://github.com/vela/core/pull/17",
+           "state" => "open",
+           "draft" => false,
+           "head" => %{"ref" => "feature/sync", "sha" => "headsha"},
+           "base" => %{"ref" => "main", "sha" => "basesha"},
+           "user" => %{"login" => "octocat"}
+         }
+       }}
+    end
+
+    assert {:ok,
+            %{
+              external_id: 987,
+              external_number: 17,
+              title: "Improve sync",
+              status: "ready_for_review",
+              source_branch: "feature/sync",
+              target_branch: "main",
+              head_sha: "headsha",
+              base_sha: "basesha",
+              html_url: "https://github.com/vela/core/pull/17"
+            }} =
+             GitHubClient.fetch_pull_request(%{
+               owner: "vela",
+               repo: "core",
+               number: 17,
+               token: "ghp_test",
+               transport: transport
+             })
+  end
+
   test "S3 object store generates SigV4 presigned URLs and signed PUT requests" do
     config = %{
       endpoint: "https://s3.test",
