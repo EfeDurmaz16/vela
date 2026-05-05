@@ -1,9 +1,10 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Idempotency, Integrations, Jobs, Merge, Webhooks}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Merge, Webhooks}
   alias Vela.Outbox.OutboxEvent
   alias Vela.Repo
+  alias VelaWeb.Api.V1.IdempotentMutation
   alias VelaWeb.Api.V1.Response
 
   import Ecto.Query
@@ -146,7 +147,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
   def sync_pull_request(conn, %{"id" => id, "number" => number}) do
     with {:ok, repository} <- fetch_repo(conn, id),
          {:ok, number} <- parse_positive_integer(number) do
-      idempotent_json(conn, repository.organization_id, fn ->
+      IdempotentMutation.respond(conn, repository.organization_id, fn ->
         {:ok, job} =
           Jobs.enqueue(:repo_sync, %{
             organization_id: repository.organization_id,
@@ -217,7 +218,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
     with :ok <- ensure_github_provider(provider),
          {:ok, repository} <- upsert_github_import_placeholder(conn, owner, repo_name) do
-      idempotent_json(conn, repository.organization_id, fn ->
+      IdempotentMutation.respond(conn, repository.organization_id, fn ->
         {:ok, job} =
           Repo.transaction(fn ->
             {:ok, job} =
@@ -287,7 +288,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
   def import_repo(conn, %{"id" => id}) do
     repository = Repo.get!(Vela.Forge.Repository, id)
 
-    idempotent_json(conn, repository.organization_id, fn ->
+    IdempotentMutation.respond(conn, repository.organization_id, fn ->
       {:ok, job} =
         Repo.transaction(fn ->
           {:ok, job} =
@@ -321,7 +322,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
       |> preload(:repository)
       |> Repo.get!(id)
 
-    idempotent_json(conn, candidate.repository.organization_id, fn ->
+    IdempotentMutation.respond(conn, candidate.repository.organization_id, fn ->
       {:ok, job} =
         Repo.transaction(fn ->
           {:ok, job} =
@@ -546,23 +547,6 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   defp job_payload(%Oban.Job{} = job) do
     %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
-  end
-
-  defp idempotent_json(conn, organization_id, fun) do
-    actor_id = conn.assigns.current_actor.id
-
-    case Idempotency.run(conn, organization_id, actor_id, fun) do
-      {:ok, {status, body}} ->
-        conn |> put_status(status) |> json(body)
-
-      {:replay, {status, body}} ->
-        conn |> put_status(status) |> json(body)
-
-      {:conflict, reason} ->
-        conn
-        |> put_status(:conflict)
-        |> json(%{error: %{code: to_string(reason)}})
-    end
   end
 
   defp record_job_accepted!(conn, attrs) do
