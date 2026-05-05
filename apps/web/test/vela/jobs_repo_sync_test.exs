@@ -1,7 +1,7 @@
 defmodule Vela.JobsRepoSyncTest do
   use Vela.DataCase, async: false
 
-  alias Vela.{Accounts, Actors, Forge}
+  alias Vela.{Accounts, Actors, Forge, Repo}
   alias Vela.Jobs.RepoSyncWorker
 
   test "repo sync worker imports a GitHub pull request into local state" do
@@ -82,5 +82,12 @@ defmodule Vela.JobsRepoSyncTest do
     assert pr.source_branch == "feature/sync"
     assert pr.target_branch == "main"
     assert pr.status == "ready_for_review"
+
+    [candidate] = Vela.Merge.MergeCandidate |> Repo.all()
+    assert candidate.repository_id == repo.id
+    assert candidate.pull_request_id == pr.id
+    assert candidate.base_sha == "basesha"
+    assert candidate.head_sha == "headsha"
+    assert candidate.status == "pending"
   end
 end

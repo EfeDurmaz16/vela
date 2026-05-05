@@ -26,7 +26,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
              token: Keyword.get(config, :token),
              transport: Keyword.get(config, :transport)
            }),
-         {:ok, _pr} <-
+         {:ok, pr} <-
            Vela.Forge.upsert_pull_request_by_provider(
              repository.id,
              "github",
@@ -45,7 +45,14 @@ defmodule Vela.Jobs.RepoSyncWorker do
                external_number: imported.external_number,
                html_url: imported.html_url
              }
-           ) do
+           ),
+         {:ok, _candidate} <-
+           Vela.Merge.upsert_merge_candidate_by_pull_request(pr.id, %{
+             repository_id: repository.id,
+             base_sha: imported.base_sha,
+             head_sha: imported.head_sha,
+             status: "pending"
+           }) do
       :ok
     end
   end
