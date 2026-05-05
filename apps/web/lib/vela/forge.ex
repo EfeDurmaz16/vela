@@ -13,6 +13,14 @@ defmodule Vela.Forge do
   def update_repository(%Repository{} = repository, attrs),
     do: repository |> Repository.changeset(attrs) |> Repo.update()
 
+  def delete_repository(%Repository{} = repository), do: Repo.delete(repository)
+
+  def get_repository_for_org(organization_id, id) do
+    Repository
+    |> where([r], r.organization_id == ^organization_id and r.id == ^id)
+    |> Repo.one()
+  end
+
   def create_branch(attrs), do: %Branch{} |> Branch.changeset(attrs) |> Repo.insert()
   def create_change(attrs), do: %Change{} |> Change.changeset(attrs) |> Repo.insert()
 

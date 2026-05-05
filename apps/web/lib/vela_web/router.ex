@@ -75,6 +75,10 @@ defmodule VelaWeb.Router do
   scope "/api/v1", VelaWeb.Api.V1 do
     pipe_through [:api, :api_session, :authenticated_api]
 
+    post "/repos", FoundationController, :create_repo
+    get "/repos/:id", FoundationController, :show_repo
+    put "/repos/:id", FoundationController, :update_repo
+    delete "/repos/:id", FoundationController, :delete_repo
     post "/repos/:id/import", FoundationController, :import_repo
     post "/merge-candidates/:id/simulate", FoundationController, :simulate_merge
   end

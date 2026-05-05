@@ -52,6 +52,75 @@ defmodule VelaWeb.Api.V1.FoundationController do
     })
   end
 
+  def create_repo(conn, params) do
+    attrs =
+      params
+      |> Map.take([
+        "name",
+        "slug",
+        "visibility",
+        "default_branch",
+        "description",
+        "provider",
+        "external_id",
+        "full_name",
+        "html_url",
+        "repo_cell_id",
+        "health_status",
+        "risk_level"
+      ])
+      |> Map.put("organization_id", conn.assigns.current_organization.id)
+
+    with {:ok, repository} <- Forge.create_repository(attrs) do
+      conn
+      |> put_status(:created)
+      |> json(%{data: serialize(repository)})
+    else
+      {:error, changeset} -> validation_error(conn, changeset)
+    end
+  end
+
+  def show_repo(conn, %{"id" => id}) do
+    with {:ok, repository} <- fetch_repo(conn, id) do
+      json(conn, %{data: serialize(repository)})
+    else
+      {:error, :not_found} -> repo_not_found(conn)
+    end
+  end
+
+  def update_repo(conn, %{"id" => id} = params) do
+    with {:ok, repository} <- fetch_repo(conn, id),
+         {:ok, repository} <-
+           Forge.update_repository(
+             repository,
+             Map.take(params, [
+               "name",
+               "slug",
+               "visibility",
+               "default_branch",
+               "description",
+               "repo_cell_id",
+               "health_status",
+               "risk_level"
+             ])
+           ) do
+      json(conn, %{data: serialize(repository)})
+    else
+      {:error, :not_found} -> repo_not_found(conn)
+      {:error, changeset} -> validation_error(conn, changeset)
+    end
+  end
+
+  def delete_repo(conn, %{"id" => id}) do
+    with {:ok, repository} <- fetch_repo(conn, id),
+         {:ok, _repository} <- Forge.delete_repository(repository) do
+      send_resp(conn, :no_content, "")
+    else
+      {:error, :not_found} -> repo_not_found(conn)
+      {:error, changeset} -> validation_error(conn, changeset)
+    end
+  end
+
   def change_readiness(conn, %{"id" => id}) do
     scores =
       Vela.Maestro.ReadinessScore
@@ -215,6 +284,33 @@ defmodule VelaWeb.Api.V1.FoundationController do
     |> Map.reject(fn {_key, value} -> match?(%Ecto.Association.NotLoaded{}, value) end)
     |> Map.drop([:__meta__, :organization, :repository, :actor, :author_actor])
     |> Map.put(:type, schema |> Module.split() |> List.last() |> Macro.underscore())
+  end
+
+  defp fetch_repo(conn, id) do
+    case Forge.get_repository_for_org(conn.assigns.current_organization.id, id) do
+      nil -> {:error, :not_found}
+      repository -> {:ok, repository}
+    end
+  end
+
+  defp repo_not_found(conn) do
+    conn
+    |> put_status(:not_found)
+    |> json(%{error: %{code: "repo_not_found"}})
+  end
+
+  defp validation_error(conn, changeset) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: %{code: "validation_failed", details: errors_on(changeset)}})
+  end
+
+  defp errors_on(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
+      Enum.reduce(opts, message, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
   end
 
   defp job_payload(%Oban.Job{} = job) do
