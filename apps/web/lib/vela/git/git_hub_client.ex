@@ -20,7 +20,8 @@ defmodule Vela.Git.GitHubClient do
          full_name: repo["full_name"],
          visibility: if(repo["private"], do: "private", else: "public"),
          default_branch: repo["default_branch"],
-         provider: "github"
+         provider: "github",
+         html_url: repo["html_url"]
        }}
     end
   end

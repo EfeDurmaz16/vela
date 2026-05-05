@@ -23,18 +23,38 @@ defmodule Vela.Jobs.RepoImportWorker do
       transport: Keyword.get(config, :transport)
     }
 
-    with {:ok, imported} <- Vela.Git.GitHubClient.import_repository(attrs),
-         repository <- Vela.Repo.get!(Vela.Forge.Repository, Map.fetch!(args, "repository_id")),
-         {:ok, _repository} <-
-           Vela.Forge.update_repository(repository, %{
-             name: imported.name,
-             slug: imported.slug,
-             visibility: imported.visibility,
-             default_branch: imported.default_branch,
-             description: imported.full_name,
-             health_status: "healthy"
-           }) do
-      :ok
+    repository = Vela.Repo.get!(Vela.Forge.Repository, Map.fetch!(args, "repository_id"))
+
+    case Vela.Git.GitHubClient.import_repository(attrs) do
+      {:ok, imported} ->
+        with {:ok, _repository} <-
+               Vela.Forge.update_repository(repository, %{
+                 name: imported.name,
+                 slug: imported.slug,
+                 visibility: imported.visibility,
+                 default_branch: imported.default_branch,
+                 description: imported.full_name,
+                 provider: imported.provider,
+                 external_id: to_string(imported.external_id),
+                 full_name: imported.full_name,
+                 html_url: imported.html_url,
+                 import_status: "imported",
+                 imported_at: DateTime.utc_now(:second),
+                 last_import_error: nil,
+                 health_status: "healthy"
+               }) do
+          :ok
+        end
+
+      {:error, reason} = error ->
+        {:ok, _repository} =
+          Vela.Forge.update_repository(repository, %{
+            import_status: "failed",
+            last_import_error: inspect(reason),
+            health_status: "failing"
+          })
+
+        error
     end
   end
 
