@@ -42,4 +42,30 @@ defmodule Vela.SchemaValidationTest do
     assert Ecto.Changeset.get_field(changeset, :can_create_pr) == false
     assert Ecto.Changeset.get_field(changeset, :can_merge) == false
   end
+
+  test "repository schema stores provider import metadata" do
+    imported_at = DateTime.utc_now(:second)
+
+    changeset =
+      Repository.changeset(%Repository{}, %{
+        organization_id: Ecto.UUID.generate(),
+        name: "core",
+        slug: "core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low",
+        provider: "github",
+        external_id: "42",
+        full_name: "vela/core",
+        html_url: "https://github.com/vela/core",
+        import_status: "imported",
+        imported_at: imported_at
+      })
+
+    assert changeset.valid?
+    assert Ecto.Changeset.get_field(changeset, :provider) == "github"
+    assert Ecto.Changeset.get_field(changeset, :import_status) == "imported"
+    assert Ecto.Changeset.get_field(changeset, :imported_at) == imported_at
+  end
 end
