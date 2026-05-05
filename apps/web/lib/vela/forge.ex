@@ -36,6 +36,22 @@ defmodule Vela.Forge do
   def update_pull_request(%PullRequest{} = pr, attrs),
     do: pr |> PullRequest.changeset(attrs) |> Repo.update()
 
+  def upsert_pull_request_by_provider(repository_id, provider, external_number, attrs) do
+    query =
+      from pr in PullRequest,
+        where:
+          pr.repository_id == ^repository_id and pr.provider == ^provider and
+            pr.external_number == ^external_number
+
+    case Repo.one(query) do
+      nil ->
+        create_pull_request(Map.merge(attrs, %{repository_id: repository_id, provider: provider}))
+
+      pr ->
+        update_pull_request(pr, attrs)
+    end
+  end
+
   def get_pull_request_for_org(organization_id, id) do
     PullRequest
     |> join(:inner, [pr], r in assoc(pr, :repository))
