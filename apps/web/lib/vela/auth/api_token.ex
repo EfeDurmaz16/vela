@@ -51,6 +51,7 @@ defmodule Vela.Auth.ApiToken do
     |> validate_subset(:scopes, @scopes)
     |> foreign_key_constraint(:organization_id)
     |> foreign_key_constraint(:actor_id)
+    |> unique_constraint(:token_hash)
   end
 
   defp validate_non_empty_scopes(changeset) do

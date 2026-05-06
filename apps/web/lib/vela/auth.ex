@@ -6,9 +6,15 @@ defmodule Vela.Auth do
   alias Vela.Accounts.{Membership, Organization, User}
   alias Vela.Actors.Actor
   alias Vela.Auth.ApiToken
+  alias Vela.Auth.TokenHash
   alias Vela.Repo
 
   import Ecto.Query
+
+  def hash_api_token(token, secret), do: TokenHash.hash_token(token, secret)
+
+  def verify_api_token(token, stored_hash, secret),
+    do: TokenHash.verify_token(token, stored_hash, secret)
 
   def create_api_token(attrs) do
     %ApiToken{}
