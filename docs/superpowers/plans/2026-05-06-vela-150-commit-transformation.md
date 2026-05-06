@@ -268,6 +268,11 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 - [x] Implement Commit 38: add isolated merge gate tests.
 - [x] Implement Commit 39: extract Maestro scoring profiles.
 - [x] Implement Commit 40: add profile scoring edge case tests.
+- [x] Implement Commit 41: split job constructors by domain.
+- [x] Implement Commit 42: add job argument contract tests.
+- [x] Implement Commit 43: split webhook signature verifiers by provider.
+- [x] Implement Commit 44: add provider verifier matrix tests.
+- [x] Implement Commit 45: update backend module map docs.
 - [x] Run focused API tests after each extraction.
 - [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
 
@@ -306,10 +311,15 @@ Completed commits from this plan:
 - 38. `test(merge): cover gates in isolation`
 - 39. `refactor(maestro): extract scoring profiles`
 - 40. `test(maestro): cover profile scoring edge cases`
+- 41. `refactor(jobs): split job constructors by domain`
+- 42. `test(jobs): cover job argument contracts`
+- 43. `refactor(webhooks): split signature providers`
+- 44. `test(webhooks): cover provider verifier matrix`
+- 45. `docs: update backend module map`
 
 Next recommended commit:
 
-- 41. `refactor(jobs): split job constructors by domain`
+- 46. `feat(evidence): add chain verifier`
 
 ## Success Criteria
 
