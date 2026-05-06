@@ -5,6 +5,7 @@ defmodule Vela.Merge do
 
   import Ecto.Query
 
+  alias Vela.Merge.Gates
   alias Vela.Merge.MergeCandidate
   alias Vela.Repo
 
@@ -29,8 +30,8 @@ defmodule Vela.Merge do
   end
 
   def queue_after_successful_review(%Vela.Forge.PullRequest{} = pull_request) do
-    with :ok <- review_gate(pull_request.id),
-         :ok <- readiness_gate(pull_request.repository_id),
+    with :ok <- Gates.review_gate(pull_request.id),
+         :ok <- Gates.readiness_gate(pull_request.repository_id),
          %MergeCandidate{} = candidate <- latest_candidate(pull_request.id),
          {:ok, queued} <- transition(candidate, "queued") do
       {:ok, queued}
@@ -42,39 +43,6 @@ defmodule Vela.Merge do
 
   def allowed_transition?(from, to), do: Vela.StateMachine.allowed?(:merge_candidate, from, to)
   def transitions, do: Vela.StateMachine.transitions(:merge_candidate)
-
-  defp review_gate(pull_request_id) do
-    reviews =
-      Vela.Forge.Review
-      |> where([r], r.pull_request_id == ^pull_request_id)
-      |> Repo.all()
-
-    cond do
-      Enum.any?(reviews, &(&1.status in ["request_changes", "block"])) ->
-        {:error, :blocking_review}
-
-      Enum.any?(reviews, &(&1.status == "approve")) ->
-        :ok
-
-      true ->
-        {:error, :missing_approval}
-    end
-  end
-
-  defp readiness_gate(repository_id) do
-    latest =
-      Vela.Maestro.ReadinessScore
-      |> where([s], s.repository_id == ^repository_id)
-      |> order_by([s], desc: s.inserted_at)
-      |> limit(1)
-      |> Repo.one()
-
-    case latest do
-      %{verdict: "ship"} -> :ok
-      nil -> {:error, :missing_readiness}
-      _score -> {:error, :readiness_not_ship}
-    end
-  end
 
   defp latest_candidate(pull_request_id) do
     MergeCandidate
