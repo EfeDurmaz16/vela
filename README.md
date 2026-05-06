@@ -45,6 +45,20 @@ The first milestone does not implement real Git hosting, real merge commits,
 hosted CI execution, production WorkOS tenant provisioning or enterprise
 compliance automation.
 
+## Status Matrix
+
+| Area | Current state | Notes |
+| --- | --- | --- |
+| Phoenix control plane | Implemented | LiveView app, API routes, seeded demo workspace and Postgres domain model. |
+| GitHub repository import | Implemented for metadata | Imports repository, branch and PR metadata through queued jobs; not a Git remote. |
+| Pull request cockpit | Implemented | Shows PR state, readiness, reviews, checks, changed files and local actions. |
+| Merge queue | Implemented locally | Queues local merge candidates after gates pass; does not create real merge commits yet. |
+| Evidence ledger | Implemented | Appends hash-chained events, verifies repository/org chains and exposes API/UI summaries. |
+| Provider webhooks | Partial | Verifies provider signatures and ingests integration events; delivery/retry workers are still pending. |
+| Analysis/Maestro | Partial | Deterministic local analyzers and signed callback path exist; external analysis service is still a contract boundary. |
+| SDK/protocol packages | Early but real | JSON schemas, webhook examples and dependency-free JS client cover the Phase 0 path. |
+| Hosted forge/CI/compliance | Not implemented | Future sidecar and deployment work; do not treat this repo as a production GitHub replacement. |
+
 ## Local Development
 
 ```bash
