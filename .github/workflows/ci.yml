@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -21,19 +21,25 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    defaults:
-      run:
-        working-directory: apps/web
     env:
       PGUSER: postgres
       PGPASSWORD: postgres
+      PGHOST: localhost
     steps:
       - uses: actions/checkout@v4
+
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "28"
-          elixir-version: "1.19"
-      - run: mix deps.get
-      - run: mix format --check-formatted
-      - run: mix compile --warnings-as-errors
-      - run: mix test
+          otp-version: "26"
+          elixir-version: "1.15"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Elixir dependencies
+        run: mix deps.get
+        working-directory: apps/web
+
+      - name: Run repo checks
+        run: ./scripts/check.sh
