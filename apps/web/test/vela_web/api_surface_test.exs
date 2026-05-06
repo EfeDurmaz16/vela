@@ -32,6 +32,7 @@ defmodule VelaWeb.ApiSurfaceTest do
       {"POST", "/api/v1/merge-candidates/:id/simulate", :simulate_merge},
       {"GET", "/api/v1/releases", :releases},
       {"GET", "/api/v1/evidence-events", :evidence_events},
+      {"GET", "/api/v1/evidence-events/verify", :verify_evidence},
       {"GET", "/api/v1/integrations", :integrations},
       {"GET", "/api/v1/service-connections", :service_connections},
       {"GET", "/api/v1/environments", :environments},
