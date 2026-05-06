@@ -10,24 +10,28 @@ defmodule Vela.JobsRepoSyncTest do
     Application.put_env(:vela, :github,
       token: "ghp_test",
       transport: fn req ->
-        assert req.url.path == "/repos/vela/core/pulls/17"
+        case req.url.path do
+          "/repos/vela/core/pulls/17" ->
+            {:ok,
+             %{
+               status: 200,
+               body: %{
+                 "id" => 987,
+                 "number" => 17,
+                 "title" => "Improve sync",
+                 "body" => "Adds sync",
+                 "html_url" => "https://github.com/vela/core/pull/17",
+                 "state" => "open",
+                 "draft" => false,
+                 "head" => %{"ref" => "feature/sync", "sha" => "headsha"},
+                 "base" => %{"ref" => "main", "sha" => "basesha"},
+                 "user" => %{"login" => "octocat"}
+               }
+             }}
 
-        {:ok,
-         %{
-           status: 200,
-           body: %{
-             "id" => 987,
-             "number" => 17,
-             "title" => "Improve sync",
-             "body" => "Adds sync",
-             "html_url" => "https://github.com/vela/core/pull/17",
-             "state" => "open",
-             "draft" => false,
-             "head" => %{"ref" => "feature/sync", "sha" => "headsha"},
-             "base" => %{"ref" => "main", "sha" => "basesha"},
-             "user" => %{"login" => "octocat"}
-           }
-         }}
+          "/repos/vela/core/pulls/17/files" ->
+            {:ok, %{status: 200, body: []}}
+        end
       end
     )
 

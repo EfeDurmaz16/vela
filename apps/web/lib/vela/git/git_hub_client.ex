@@ -53,6 +53,16 @@ defmodule Vela.Git.GitHubClient do
     end
   end
 
+  def list_pull_request_files(attrs) do
+    with {:ok, files} <-
+           get_json(
+             attrs,
+             "/repos/#{owner(attrs)}/#{repo(attrs)}/pulls/#{Map.fetch!(attrs, :number)}/files?per_page=100"
+           ) do
+      {:ok, Enum.map(files, &normalize_pull_request_file/1)}
+    end
+  end
+
   def create_issue_comment(attrs) do
     path = "/repos/#{owner(attrs)}/#{repo(attrs)}/issues/#{Map.fetch!(attrs, :number)}/comments"
 
@@ -196,9 +206,28 @@ defmodule Vela.Git.GitHubClient do
       protected: Map.get(branch, "protected", false)
     }
 
+  defp normalize_pull_request_file(file),
+    do: %{
+      path: file["filename"],
+      previous_path: file["previous_filename"],
+      status: normalize_file_status(file["status"]),
+      additions: file["additions"] || 0,
+      deletions: file["deletions"] || 0,
+      changes: file["changes"] || 0,
+      patch: file["patch"],
+      blob_url: file["blob_url"],
+      raw_url: file["raw_url"]
+    }
+
   defp normalize_pull_request_status(%{"draft" => true}), do: "draft"
   defp normalize_pull_request_status(%{"state" => "closed", "merged" => true}), do: "merged"
   defp normalize_pull_request_status(%{"state" => "closed"}), do: "closed"
   defp normalize_pull_request_status(%{"state" => "open"}), do: "ready_for_review"
   defp normalize_pull_request_status(_), do: "open"
+
+  defp normalize_file_status(status)
+       when status in ~w(added removed modified renamed copied changed unchanged),
+       do: status
+
+  defp normalize_file_status(_status), do: "changed"
 end

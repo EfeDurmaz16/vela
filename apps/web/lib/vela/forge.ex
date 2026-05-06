@@ -9,6 +9,7 @@ defmodule Vela.Forge do
     Branch,
     Change,
     Issue,
+    PullRequestFile,
     PullRequests,
     PullRequest,
     Repositories,
@@ -63,6 +64,31 @@ defmodule Vela.Forge do
 
   def update_pull_request(%PullRequest{} = pr, attrs),
     do: PullRequests.update(pr, attrs)
+
+  def upsert_pull_request_file(pull_request_id, attrs) do
+    now = DateTime.utc_now(:second)
+
+    attrs = Map.put(attrs, :pull_request_id, pull_request_id)
+
+    %PullRequestFile{}
+    |> PullRequestFile.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: [
+        set: [
+          previous_path: attrs.previous_path,
+          status: attrs.status,
+          additions: attrs.additions,
+          deletions: attrs.deletions,
+          changes: attrs.changes,
+          patch: attrs.patch,
+          blob_url: attrs.blob_url,
+          raw_url: attrs.raw_url,
+          updated_at: now
+        ]
+      ],
+      conflict_target: [:pull_request_id, :path]
+    )
+  end
 
   def upsert_pull_request_by_provider(repository_id, provider, external_number, attrs) do
     PullRequests.upsert_by_provider(repository_id, provider, external_number, attrs)

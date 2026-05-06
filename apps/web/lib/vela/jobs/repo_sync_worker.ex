@@ -20,14 +20,16 @@ defmodule Vela.Jobs.RepoSyncWorker do
     [owner, repo] = String.split(repository.full_name || "", "/", parts: 2)
     config = Application.get_env(:vela, :github, [])
 
-    with {:ok, imported} <-
-           Vela.Git.GitHubClient.fetch_pull_request(%{
-             owner: owner,
-             repo: repo,
-             number: number,
-             token: Keyword.get(config, :token),
-             transport: Keyword.get(config, :transport)
-           }),
+    attrs = %{
+      owner: owner,
+      repo: repo,
+      number: number,
+      token: Keyword.get(config, :token),
+      transport: Keyword.get(config, :transport)
+    }
+
+    with {:ok, imported} <- Vela.Git.GitHubClient.fetch_pull_request(attrs),
+         {:ok, changed_files} <- Vela.Git.GitHubClient.list_pull_request_files(attrs),
          {:ok, pr} <-
            Vela.Forge.upsert_pull_request_by_provider(
              repository.id,
@@ -48,6 +50,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
                html_url: imported.html_url
              }
            ),
+         :ok <- import_pull_request_files(pr.id, changed_files),
          {:ok, _candidate} <-
            Vela.Merge.upsert_merge_candidate_by_pull_request(pr.id, %{
              repository_id: repository.id,
@@ -63,6 +66,15 @@ defmodule Vela.Jobs.RepoSyncWorker do
 
   defp sync_repository(%{"provider" => provider}), do: {:error, {:unsupported_provider, provider}}
   defp sync_repository(_args), do: {:error, :missing_provider}
+
+  defp import_pull_request_files(pull_request_id, files) do
+    Enum.reduce_while(files, :ok, fn file, :ok ->
+      case Vela.Forge.upsert_pull_request_file(pull_request_id, file) do
+        {:ok, _file} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
 
   defp seed_readiness(repository, pr) do
     dimensions = %{
