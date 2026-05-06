@@ -65,7 +65,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
              status: "pending"
            }),
          {:ok, _score} <- seed_readiness(repository, pr),
-         {:ok, _job} <- enqueue_score_recalculation(repository, pr),
+         {:ok, _job} <- enqueue_score_recalculation(repository, pr, Map.get(args, "actor_id")),
          :ok <- record_pr_synced(repository, pr, Map.get(args, "actor_id")) do
       :ok
     end
@@ -134,11 +134,12 @@ defmodule Vela.Jobs.RepoSyncWorker do
     })
   end
 
-  defp enqueue_score_recalculation(repository, pr) do
+  defp enqueue_score_recalculation(repository, pr, actor_id) do
     Vela.Jobs.enqueue(:score_recalculation, %{
       organization_id: repository.organization_id,
       repository_id: repository.id,
-      pull_request_id: pr.id
+      pull_request_id: pr.id,
+      actor_id: actor_id
     })
   end
 
