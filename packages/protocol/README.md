@@ -13,3 +13,23 @@ Evidence exports use an explicit envelope contract:
 changes only when the canonical hash envelope changes. Consumers should reject
 unknown major schema ids and unknown envelope versions until they explicitly
 support them.
+
+## Webhook Event Versions
+
+Webhook deliveries use `schemaVersion: "vela.webhook.v1"` with a stable event
+envelope:
+
+- `id`: Vela event delivery id.
+- `type`: domain event name, for example `merge.queued`.
+- `created_at`: ISO-8601 event creation timestamp.
+- `data`: event-specific payload.
+
+Current examples live in `examples/webhooks/` and cover:
+
+- `repo.import_queued`
+- `pr.comment.created`
+- `merge.queued`
+- `merge.cancelled`
+
+Consumers should route by `type` after checking `schemaVersion`. New event types
+can be added under the same schema version when the envelope stays compatible.

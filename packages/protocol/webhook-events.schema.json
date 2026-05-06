@@ -2,8 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Vela Webhook Event",
   "type": "object",
-  "required": ["id", "type", "created_at", "data"],
+  "required": ["schemaVersion", "id", "type", "created_at", "data"],
+  "additionalProperties": false,
   "properties": {
+    "schemaVersion": {"const": "vela.webhook.v1"},
     "id": {"type": "string"},
     "type": {"type": "string"},
     "created_at": {"type": "string", "format": "date-time"},
