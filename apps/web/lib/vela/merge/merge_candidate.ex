@@ -13,6 +13,7 @@ defmodule Vela.Merge.MergeCandidate do
     field :final_merge_tree_hash, :string
     field :tree_state, :string, default: "unmerged"
     field :status, :string
+    field :target_branch, :string
     field :queue_position, :integer
     field :policy_result, :map, default: %{}
     field :rollback_plan, :map, default: %{}
@@ -39,6 +40,7 @@ defmodule Vela.Merge.MergeCandidate do
       :final_merge_tree_hash,
       :tree_state,
       :status,
+      :target_branch,
       :queue_position,
       :analysis_run_id,
       :policy_result,

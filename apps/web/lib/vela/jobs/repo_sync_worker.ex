@@ -61,6 +61,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
              repository_id: repository.id,
              base_sha: imported.base_sha,
              head_sha: imported.head_sha,
+             target_branch: imported.target_branch,
              status: "pending"
            }),
          {:ok, _score} <- seed_readiness(repository, pr),
