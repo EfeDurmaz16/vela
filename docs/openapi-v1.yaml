@@ -158,6 +158,40 @@ paths:
       summary: List analysis runs
       responses:
         "200": { $ref: "#/components/responses/Collection" }
+  /analysis-runs/{id}/callback:
+    post:
+      summary: Receive a signed external analysis callback
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: x-vela-timestamp
+          in: header
+          required: true
+          schema: { type: string }
+        - name: x-vela-signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [completed, failed, cancelled]
+                summary:
+                  type: string
+                completed_at:
+                  type: string
+                  format: date-time
+      responses:
+        "202": { $ref: "#/components/responses/Object" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
   /readiness-scores:
     get:
       summary: List readiness scores
