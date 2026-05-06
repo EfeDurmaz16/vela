@@ -422,10 +422,12 @@ Completed commits from this plan:
 - 130. `test(live): cover evidence verifier status`
 - 131. `feat(protocol): define event envelope versioning`
 - 132. `test(protocol): validate event schemas in mix test`
+- 133. `feat(sdk-js): add minimal typed client`
+- 134. `test(sdk-js): add client serialization tests`
 
 Next recommended commit:
 
-- 133. `feat(sdk-js): add minimal typed client`
+- 135. `feat(protocol): add webhook payload schema examples`
 
 ## Success Criteria
 
