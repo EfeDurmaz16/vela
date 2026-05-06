@@ -31,7 +31,8 @@ defmodule VelaWeb.AppLive do
       sessions: Agents.list_recent_sessions(),
       evidence_events: Evidence.list_recent_events(20),
       integration_status: Integrations.phase_zero_status(),
-      import_form: %{"owner" => "", "repo" => ""}
+      import_form: %{"owner" => "", "repo" => ""},
+      import_error: nil
     )
   end
 
@@ -48,7 +49,8 @@ defmodule VelaWeb.AppLive do
         {:noreply,
          socket
          |> put_flash(:error, "Owner and repository are required.")
-         |> assign(:import_form, params)}
+         |> assign(:import_form, params)
+         |> assign(:import_error, "Owner and repository are required.")}
 
       {:error, :missing_workspace} ->
         {:noreply, put_flash(socket, :error, "No organization and actor are available.")}
@@ -58,6 +60,7 @@ defmodule VelaWeb.AppLive do
          socket
          |> put_flash(:error, "Repository import could not be queued.")
          |> assign(:import_form, params)
+         |> assign(:import_error, "Repository import could not be queued.")
          |> assign(:import_errors, changeset)}
     end
   end
@@ -175,7 +178,11 @@ defmodule VelaWeb.AppLive do
 
   defp page(%{live_action: :repos} = assigns) do
     ~H"""
-    <.repositories_page repositories={@repositories} import_form={@import_form} />
+    <.repositories_page
+      repositories={@repositories}
+      import_form={@import_form}
+      import_error={@import_error}
+    />
     """
   end
 

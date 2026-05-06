@@ -9,6 +9,7 @@ defmodule VelaWeb.RepositoryPageComponents do
 
   attr :repositories, :list, required: true
   attr :import_form, :map, default: %{"owner" => "", "repo" => ""}
+  attr :import_error, :string, default: nil
 
   def repositories_page(assigns) do
     ~H"""
@@ -21,9 +22,11 @@ defmodule VelaWeb.RepositoryPageComponents do
         <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">
           Import GitHub Repository
         </h2>
+        <p :if={@import_error} class="mt-3 text-sm font-medium text-danger">{@import_error}</p>
         <.form
           for={%{}}
           as={:import}
+          id="repo-import-form"
           phx-submit="import_repository"
           class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]"
         >
