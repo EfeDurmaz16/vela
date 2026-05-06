@@ -18,7 +18,7 @@ correctness that local code should not reimplement.
 
 ## Local Verification
 
-Run the full repo check before opening a PR:
+Run the same repo check that CI runs before opening a PR:
 
 ```sh
 ./scripts/check.sh
@@ -32,8 +32,20 @@ This currently runs:
 - a controller-size guard for the v1 API facade
 - `node --test packages/sdk-js/test/*.test.mjs`
 
-For focused work, use the narrowest useful check first, then the full script
-before marking the branch ready.
+For focused work, use the narrowest useful check first:
+
+```sh
+cd apps/web
+mix test test/vela/protocol_schema_test.exs
+mix test test/vela_web/api_jobs_test.exs
+cd ../..
+node --test packages/sdk-js/test/*.test.mjs
+```
+
+Then run `./scripts/check.sh` from the repository root before marking the branch
+ready. GitHub Actions calls the same script after installing Elixir
+dependencies, so CI failures should be reproducible locally unless the failure
+depends on the hosted Postgres service or action environment.
 
 ## Commit Shape
 
