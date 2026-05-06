@@ -3,6 +3,8 @@ defmodule Vela.ProtocolSchemaTest do
 
   @repo_root Path.expand("../../../..", __DIR__)
   @events_schema Path.join(@repo_root, "packages/protocol/events.schema.json")
+  @webhook_schema Path.join(@repo_root, "packages/protocol/webhook-events.schema.json")
+  @webhook_examples_dir Path.join(@repo_root, "packages/protocol/examples/webhooks")
 
   test "evidence event schema defines explicit envelope versions" do
     schema = load_schema(@events_schema)
@@ -71,6 +73,59 @@ defmodule Vela.ProtocolSchemaTest do
       Map.put(bad_version, "schemaVersion", "vela.evidence.v1") |> Map.put("extra", true)
 
     assert {:error, {:additional_properties, ["extra"]}} = schema_match(schema, extra_field)
+  end
+
+  test "webhook schema defines explicit versioned delivery envelope" do
+    schema = load_schema(@webhook_schema)
+
+    assert schema["title"] == "Vela Webhook Event"
+    assert schema["additionalProperties"] == false
+    assert "schemaVersion" in schema["required"]
+    assert get_in(schema, ["properties", "schemaVersion", "const"]) == "vela.webhook.v1"
+  end
+
+  test "webhook examples satisfy the protocol schema contract" do
+    schema = load_schema(@webhook_schema)
+
+    examples =
+      @webhook_examples_dir
+      |> Path.join("*.json")
+      |> Path.wildcard()
+      |> Enum.sort()
+
+    assert length(examples) == 4
+
+    for path <- examples do
+      event = load_schema(path)
+
+      assert_schema_match!(schema, event)
+      assert Path.basename(path, ".json") == event["type"]
+      assert is_map(event["data"])
+      assert map_size(event["data"]) > 0
+    end
+  end
+
+  test "webhook schema rejects unknown schema versions and undeclared fields" do
+    schema = load_schema(@webhook_schema)
+
+    bad_version = %{
+      "schemaVersion" => "vela.webhook.v2",
+      "id" => "evt_123",
+      "type" => "merge.queued",
+      "created_at" => "2026-05-06T11:00:00Z",
+      "data" => %{}
+    }
+
+    assert {:error, {:const, "schemaVersion", "vela.webhook.v1", "vela.webhook.v2"}} =
+             schema_match(schema, bad_version)
+
+    extra_field =
+      bad_version
+      |> Map.put("schemaVersion", "vela.webhook.v1")
+      |> Map.put("delivery_attempt", 1)
+
+    assert {:error, {:additional_properties, ["delivery_attempt"]}} =
+             schema_match(schema, extra_field)
   end
 
   defp load_schema(path) do
