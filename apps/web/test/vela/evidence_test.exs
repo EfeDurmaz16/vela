@@ -188,6 +188,21 @@ defmodule Vela.EvidenceTest do
     assert second_page.next_cursor == nil
   end
 
+  test "rejects unknown critical event types" do
+    %{actor: actor, org: org} = evidence_fixture!("unknown-event")
+
+    assert {:error, changeset} =
+             Evidence.append_event(%{
+               organization_id: org.id,
+               actor_id: actor.id,
+               event_type: "merge.secret_backdoor",
+               resource_type: "merge_candidate",
+               payload: %{verdict: "allow"}
+             })
+
+    assert {"is invalid", _} = changeset.errors[:event_type]
+  end
+
   defp evidence_fixture!(suffix) do
     {:ok, org} =
       Accounts.create_organization(%{
