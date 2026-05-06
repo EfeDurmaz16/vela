@@ -155,6 +155,39 @@ defmodule Vela.EvidenceTest do
     assert last_hash == event.event_hash
   end
 
+  test "export cursor is stable for events with the same timestamp" do
+    %{actor: actor, org: org} = evidence_fixture!("export")
+    inserted_at = %{DateTime.utc_now(:microsecond) | microsecond: {0, 6}}
+
+    events =
+      for index <- 1..3 do
+        {:ok, event} =
+          Evidence.append_event(%{
+            organization_id: org.id,
+            actor_id: actor.id,
+            event_type: "policy.evaluated",
+            resource_type: "policy",
+            payload: %{index: index}
+          })
+
+        event
+        |> Ecto.Changeset.change(inserted_at: inserted_at)
+        |> Repo.update!()
+      end
+
+    expected_ids = events |> Enum.map(& &1.id) |> Enum.sort()
+
+    first_page = Evidence.export_events(org.id, limit: 2)
+    second_page = Evidence.export_events(org.id, limit: 2, after: first_page.next_cursor)
+
+    returned_ids = Enum.map(first_page.data ++ second_page.data, & &1.id)
+
+    assert Enum.sort(returned_ids) == expected_ids
+    assert Enum.uniq(returned_ids) == returned_ids
+    assert first_page.next_cursor != nil
+    assert second_page.next_cursor == nil
+  end
+
   defp evidence_fixture!(suffix) do
     {:ok, org} =
       Accounts.create_organization(%{
