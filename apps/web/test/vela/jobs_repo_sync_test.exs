@@ -158,17 +158,18 @@ defmodule Vela.JobsRepoSyncTest do
         import_status: "imported"
       })
 
-    assert :ok =
-             RepoSyncWorker.perform(%Oban.Job{
-               args: %{
-                 "kind" => "repo_sync",
-                 "organization_id" => org.id,
-                 "repository_id" => repo.id,
-                 "actor_id" => actor.id,
-                 "provider" => "github",
-                 "pull_request_number" => 17
-               }
-             })
+    sync_job = %Oban.Job{
+      args: %{
+        "kind" => "repo_sync",
+        "organization_id" => org.id,
+        "repository_id" => repo.id,
+        "actor_id" => actor.id,
+        "provider" => "github",
+        "pull_request_number" => 17
+      }
+    }
+
+    assert :ok = RepoSyncWorker.perform(sync_job)
 
     [pr] = Forge.list_pull_requests()
     assert pr.repository_id == repo.id
@@ -333,5 +334,23 @@ defmodule Vela.JobsRepoSyncTest do
              Vela.Evidence.list_repository_events(repo.id, 5)
 
     assert pr_id == pr.id
+
+    counts_before_repeat = %{
+      pull_requests: Repo.aggregate(Vela.Forge.PullRequest, :count),
+      files: Repo.aggregate(Vela.Forge.PullRequestFile, :count),
+      reviews: Repo.aggregate(Vela.Forge.Review, :count),
+      check_runs: Repo.aggregate(Vela.Forge.CheckRun, :count),
+      merge_candidates: Repo.aggregate(Vela.Merge.MergeCandidate, :count)
+    }
+
+    assert :ok = RepoSyncWorker.perform(sync_job)
+
+    assert counts_before_repeat == %{
+             pull_requests: Repo.aggregate(Vela.Forge.PullRequest, :count),
+             files: Repo.aggregate(Vela.Forge.PullRequestFile, :count),
+             reviews: Repo.aggregate(Vela.Forge.Review, :count),
+             check_runs: Repo.aggregate(Vela.Forge.CheckRun, :count),
+             merge_candidates: Repo.aggregate(Vela.Merge.MergeCandidate, :count)
+           }
   end
 end
