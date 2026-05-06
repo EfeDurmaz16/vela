@@ -258,6 +258,14 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 - [x] Implement Commit 28: strengthen route dispatch surface tests.
 - [x] Implement Commit 29: document internal API support modules.
 - [x] Implement Commit 30: add controller size guard to `scripts/check.sh`.
+- [x] Implement Commit 31: split repository operations.
+- [x] Implement Commit 32: split pull request operations.
+- [x] Implement Commit 33: split review operations.
+- [x] Implement Commit 34: split repository trust signal operations.
+- [x] Implement Commit 35: add repository tenant query tests.
+- [x] Implement Commit 36: add pull request route lookup/preload tests.
+- [x] Implement Commit 37: extract merge gates.
+- [x] Implement Commit 38: add isolated merge gate tests.
 - [x] Run focused API tests after each extraction.
 - [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
 
@@ -286,10 +294,18 @@ Completed commits from this plan:
 - 28. `test(api): preserve full API surface after split`
 - 29. `docs(api): document internal API support modules`
 - 30. `chore(api): enforce controller size guard in check script`
+- 31. `refactor(forge): split repository queries`
+- 32. `refactor(forge): split pull request queries`
+- 33. `refactor(forge): split review operations`
+- 34. `refactor(forge): split trust signal operations`
+- 35. `test(forge): cover repository tenant queries`
+- 36. `test(forge): cover pull request route lookup`
+- 37. `refactor(merge): extract gates module`
+- 38. `test(merge): cover gates in isolation`
 
 Next recommended commit:
 
-- 31. `refactor(forge): split repository queries`
+- 39. `refactor(maestro): extract scoring profiles`
 
 ## Success Criteria
 
