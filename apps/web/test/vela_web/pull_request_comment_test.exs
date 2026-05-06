@@ -21,6 +21,35 @@ defmodule VelaWeb.PullRequestCommentTest do
     assert org_id == org.id
   end
 
+  test "reviewer and maintainer roles can create PR comments", %{conn: conn} do
+    for role <- ~w(reviewer maintainer) do
+      %{pull_request: pr, session: session} = pr_fixture!("role-#{role}", role)
+
+      response =
+        conn
+        |> recycle()
+        |> init_test_session(%{ApiAuth.session_key() => session})
+        |> post(~p"/api/v1/pull-requests/#{pr.id}/comments", %{body: "Role #{role} comment"})
+        |> json_response(201)
+
+      assert %{"data" => %{"status" => "comment", "summary" => summary}} = response
+      assert summary == "Role #{role} comment"
+    end
+  end
+
+  test "observer role cannot create PR comments", %{conn: conn} do
+    %{pull_request: pr, session: session} = pr_fixture!("observer", "observer")
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/pull-requests/#{pr.id}/comments", %{body: "No mutation"})
+      |> json_response(403)
+
+    assert response == %{"error" => %{"code" => "forbidden"}}
+    assert Vela.Repo.all(Vela.Forge.Review) == []
+  end
+
   test "authenticated users can publish a PR comment to GitHub", %{conn: conn} do
     previous = Application.get_env(:vela, :github)
 
@@ -81,11 +110,11 @@ defmodule VelaWeb.PullRequestCommentTest do
     assert %{"error" => %{"code" => "pull_request_not_found"}} = response
   end
 
-  defp pr_fixture!(suffix) do
+  defp pr_fixture!(suffix, role \\ "admin") do
     {:ok, org} =
       Accounts.create_organization(%{name: "PR Comment #{suffix}", slug: "pr-comment-#{suffix}"})
 
-    session = auth_session_for_org!(org, suffix)
+    session = auth_session_for_org!(org, suffix, role)
 
     {:ok, author} =
       Actors.create_actor(%{
@@ -127,7 +156,7 @@ defmodule VelaWeb.PullRequestCommentTest do
     %{org: org, repo: repo, pull_request: pr, session: session}
   end
 
-  defp auth_session_for_org!(org, suffix) do
+  defp auth_session_for_org!(org, suffix, role) do
     {:ok, user} =
       Accounts.create_user(%{
         email: "pr-comment-#{suffix}@example.com",
@@ -136,7 +165,7 @@ defmodule VelaWeb.PullRequestCommentTest do
       })
 
     {:ok, membership} =
-      Accounts.create_membership(%{user_id: user.id, organization_id: org.id, role: "admin"})
+      Accounts.create_membership(%{user_id: user.id, organization_id: org.id, role: role})
 
     {:ok, actor} =
       Actors.create_actor(%{

@@ -55,6 +55,74 @@ defmodule VelaWeb.PullRequestMergeTest do
     assert repository_id == pr.repository_id
   end
 
+  test "maintainer role can queue a reviewed pull request for merge", %{conn: conn} do
+    %{org: org, session: session, pull_request: pr, reviewer: reviewer, candidate: candidate} =
+      pr_fixture!("maintainer", "maintainer")
+
+    {:ok, _review} =
+      Forge.create_review(%{
+        pull_request_id: pr.id,
+        actor_id: reviewer.id,
+        status: "approve",
+        summary: "Ship it"
+      })
+
+    {:ok, _score} =
+      Maestro.create_readiness_score(%{
+        organization_id: org.id,
+        repository_id: pr.repository_id,
+        score: 91,
+        verdict: "ship",
+        confidence: "high",
+        dimensions: readiness_dimensions(91),
+        explanation: "Ready to merge"
+      })
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/pull-requests/#{pr.id}/merge", %{})
+      |> json_response(202)
+
+    assert %{"data" => %{"merge_candidate" => %{"id" => candidate_id, "status" => "queued"}}} =
+             response
+
+    assert candidate_id == candidate.id
+  end
+
+  test "reviewer role cannot queue merge even when gates pass", %{conn: conn} do
+    %{org: org, session: session, pull_request: pr, reviewer: reviewer, candidate: candidate} =
+      pr_fixture!("reviewer-denied", "reviewer")
+
+    {:ok, _review} =
+      Forge.create_review(%{
+        pull_request_id: pr.id,
+        actor_id: reviewer.id,
+        status: "approve",
+        summary: "Ship it"
+      })
+
+    {:ok, _score} =
+      Maestro.create_readiness_score(%{
+        organization_id: org.id,
+        repository_id: pr.repository_id,
+        score: 91,
+        verdict: "ship",
+        confidence: "high",
+        dimensions: readiness_dimensions(91),
+        explanation: "Ready to merge"
+      })
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/pull-requests/#{pr.id}/merge", %{})
+      |> json_response(403)
+
+    assert response == %{"error" => %{"code" => "forbidden"}}
+    assert %{status: "pending"} = Repo.get!(Merge.MergeCandidate, candidate.id)
+  end
+
   test "merge queue rejects pull requests that have not passed review gates", %{conn: conn} do
     %{session: session, pull_request: pr} = pr_fixture!("missing-approval")
 
@@ -81,7 +149,7 @@ defmodule VelaWeb.PullRequestMergeTest do
     assert %{"error" => %{"code" => "pull_request_not_found"}} = response
   end
 
-  defp pr_fixture!(suffix) do
+  defp pr_fixture!(suffix, role \\ "admin") do
     unique = System.unique_integer([:positive])
 
     {:ok, org} =
@@ -90,7 +158,7 @@ defmodule VelaWeb.PullRequestMergeTest do
         slug: "pr-merge-#{suffix}-#{unique}"
       })
 
-    session = auth_session_for_org!(org, suffix, unique)
+    session = auth_session_for_org!(org, suffix, unique, role)
 
     {:ok, author} =
       Actors.create_actor(%{
@@ -150,7 +218,7 @@ defmodule VelaWeb.PullRequestMergeTest do
     }
   end
 
-  defp auth_session_for_org!(org, suffix, unique) do
+  defp auth_session_for_org!(org, suffix, unique, role) do
     {:ok, user} =
       Accounts.create_user(%{
         email: "pr-merge-#{suffix}-#{unique}@example.com",
@@ -159,7 +227,7 @@ defmodule VelaWeb.PullRequestMergeTest do
       })
 
     {:ok, membership} =
-      Accounts.create_membership(%{user_id: user.id, organization_id: org.id, role: "admin"})
+      Accounts.create_membership(%{user_id: user.id, organization_id: org.id, role: role})
 
     {:ok, actor} =
       Actors.create_actor(%{
