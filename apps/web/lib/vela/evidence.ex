@@ -6,10 +6,17 @@ defmodule Vela.Evidence do
   import Ecto.Query
 
   alias Vela.Evidence.EvidenceEvent
+  alias Vela.Evidence.EventTypes
   alias Vela.Evidence.Verifier
   alias Vela.Repo
 
   def append_event(attrs) do
+    with :ok <- validate_actor_requirement(attrs) do
+      append_valid_event(attrs)
+    end
+  end
+
+  defp append_valid_event(attrs) do
     now = %{DateTime.utc_now(:microsecond) | microsecond: {0, 6}}
     payload = Map.get(attrs, :payload, %{})
     payload_hash = hash(payload)
@@ -38,6 +45,21 @@ defmodule Vela.Evidence do
     )
     |> Repo.insert()
   end
+
+  defp validate_actor_requirement(%{event_type: event_type, actor_id: actor_id})
+       when is_binary(actor_id) do
+    if EventTypes.critical?(event_type) or EventTypes.known?(event_type), do: :ok, else: :ok
+  end
+
+  defp validate_actor_requirement(%{event_type: event_type}) do
+    if EventTypes.critical?(event_type) do
+      {:error, :critical_actor_required}
+    else
+      :ok
+    end
+  end
+
+  defp validate_actor_requirement(_attrs), do: {:error, :critical_actor_required}
 
   def list_recent_events(limit \\ 25) do
     EvidenceEvent

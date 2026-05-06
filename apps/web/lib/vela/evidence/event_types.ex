@@ -13,4 +13,9 @@ defmodule Vela.Evidence.EventTypes do
 
   def all, do: @event_types
   def known?(event_type), do: event_type in @event_types
+
+  def critical?(event_type) do
+    known?(event_type) and
+      not String.starts_with?(event_type, "integration.")
+  end
 end
