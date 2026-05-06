@@ -63,6 +63,7 @@ defmodule Vela.Maestro.ReadinessScore do
     |> Vela.Validation.validate_inclusion(:confidence, @confidences)
     |> validate_dimensions()
     |> put_dimension_explanations()
+    |> validate_dimension_explanations()
   end
 
   defp validate_dimensions(changeset) do
@@ -104,4 +105,29 @@ defmodule Vela.Maestro.ReadinessScore do
   end
 
   defp humanize_dimension(key), do: key |> String.replace("_", " ") |> String.capitalize()
+
+  defp validate_dimension_explanations(changeset) do
+    verdict = get_field(changeset, :verdict)
+
+    if verdict in ["wait", "block"] do
+      explanations = get_field(changeset, :dimension_explanations) || %{}
+
+      errors =
+        Enum.flat_map(@dimension_keys, fn key ->
+          explanation = Map.get(explanations, key)
+
+          if is_binary(explanation) and String.length(String.trim(explanation)) >= 20 do
+            []
+          else
+            [{:dimension_explanations, "#{key} explanation is required for #{verdict} verdict"}]
+          end
+        end)
+
+      Enum.reduce(errors, changeset, fn {field, message}, acc ->
+        add_error(acc, field, message)
+      end)
+    else
+      changeset
+    end
+  end
 end

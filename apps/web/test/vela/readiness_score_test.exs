@@ -35,6 +35,36 @@ defmodule Vela.ReadinessScoreTest do
     assert %{valid?: false} = ReadinessScore.changeset(%ReadinessScore{}, bad_score)
   end
 
+  test "requires useful dimension explanations for non-ship verdicts" do
+    wait_attrs =
+      @valid_attrs
+      |> Map.put(:verdict, "wait")
+      |> Map.put(:dimension_explanations, %{"security" => "too short"})
+
+    changeset = ReadinessScore.changeset(%ReadinessScore{}, wait_attrs)
+
+    refute changeset.valid?
+
+    assert Enum.any?(changeset.errors, fn
+             {:dimension_explanations, {message, _opts}} ->
+               String.contains?(message, "repository_trust explanation is required")
+
+             _error ->
+               false
+           end)
+
+    defaulted =
+      @valid_attrs
+      |> Map.put(:verdict, "block")
+      |> Map.delete(:dimension_explanations)
+      |> then(&ReadinessScore.changeset(%ReadinessScore{}, &1))
+
+    assert defaulted.valid?
+
+    assert Ecto.Changeset.get_change(defaulted, :dimension_explanations)["security"] =~
+             "Security contributed"
+  end
+
   test "computes verdicts from objective readiness dimensions" do
     ship = Maestro.compute_readiness(%{dimensions: @valid_attrs.dimensions, confidence: "high"})
     wait = Maestro.compute_readiness(%{dimensions: @valid_attrs.dimensions, confidence: "low"})
