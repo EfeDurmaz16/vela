@@ -27,6 +27,7 @@ defmodule VelaWeb.ApiSurfaceTest do
       {"GET", "/api/v1/agents/:id/sessions", :agent_sessions},
       {"GET", "/api/v1/agents/:id/policies", :agent_policies},
       {"GET", "/api/v1/analysis-runs", :analysis_runs},
+      {"POST", "/api/v1/analysis-runs/:id/callback", :analysis_callback},
       {"GET", "/api/v1/readiness-scores", :readiness_scores},
       {"GET", "/api/v1/merge-candidates", :merge_candidates},
       {"POST", "/api/v1/merge-candidates/:id/cancel", :cancel_merge_candidate},

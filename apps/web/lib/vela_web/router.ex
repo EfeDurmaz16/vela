@@ -72,6 +72,7 @@ defmodule VelaWeb.Router do
   scope "/api/v1", VelaWeb.Api.V1 do
     pipe_through :api
 
+    post "/analysis-runs/:id/callback", FoundationController, :analysis_callback
     post "/webhooks/:provider", FoundationController, :webhook
   end
 

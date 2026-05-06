@@ -9,6 +9,9 @@ defmodule Vela.Maestro do
   def create_analysis_run(attrs),
     do: %AnalysisRun{} |> AnalysisRun.changeset(attrs) |> Repo.insert()
 
+  def update_analysis_run(%AnalysisRun{} = analysis_run, attrs),
+    do: analysis_run |> AnalysisRun.changeset(attrs) |> Repo.update()
+
   def create_launch_readiness_score(attrs),
     do: %LaunchReadinessScore{} |> LaunchReadinessScore.changeset(attrs) |> Repo.insert()
 
