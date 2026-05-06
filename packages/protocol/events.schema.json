@@ -2,8 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Vela Evidence Event",
   "type": "object",
-  "required": ["id", "org_id", "actor_id", "event_type", "resource_type", "payload_hash", "event_hash", "created_at"],
+  "required": [
+    "schemaVersion",
+    "envelopeVersion",
+    "id",
+    "org_id",
+    "actor_id",
+    "event_type",
+    "resource_type",
+    "payload_hash",
+    "event_hash",
+    "created_at"
+  ],
+  "additionalProperties": false,
   "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "vela.evidence.v1"
+    },
+    "envelopeVersion": {
+      "type": "integer",
+      "const": 1
+    },
     "id": {"type": "string"},
     "org_id": {"type": "string"},
     "repo_id": {"type": ["string", "null"]},
@@ -11,6 +31,7 @@
     "event_type": {"type": "string"},
     "resource_type": {"type": "string"},
     "resource_id": {"type": ["string", "null"]},
+    "payload": {"type": "object"},
     "payload_hash": {"type": "string"},
     "prev_event_hash": {"type": ["string", "null"]},
     "event_hash": {"type": "string"},

@@ -15,11 +15,18 @@ Evidence is chained per scope:
 
 Each event stores:
 
+- `schemaVersion`: public export schema id. Current value: `vela.evidence.v1`.
+- `envelopeVersion`: canonical hash envelope version. Current value: `1`.
 - `payload_hash`: canonical JSON hash of the event payload.
 - `prev_event_hash`: previous event hash in the same scope.
 - `event_hash`: canonical hash of the event envelope, including `payload_hash`, `prev_event_hash`, actor, resource and timestamp.
 
 Critical events must include an explicit actor. System actions should use a trusted system actor such as `Vela Merge`, not a null actor.
+
+Changing `schemaVersion` means the exported JSON contract changed. Changing
+`envelopeVersion` means the canonical data hashed into `event_hash` changed.
+Consumers should treat unknown versions as unsupported rather than attempting a
+best-effort parse.
 
 ## Verification
 
