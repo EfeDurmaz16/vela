@@ -405,10 +405,12 @@ Completed commits from this plan:
 - 116. `test(live): cover repository page states`
 - 117. `refactor(ui): extract pull request cockpit module`
 - 118. `test(live): cover PR cockpit risk states`
+- 119. `refactor(ui): extract evidence page module`
+- 120. `test(live): cover evidence empty and populated states`
 
 Next recommended commit:
 
-- 119. `refactor(ui): extract evidence page module`
+- 121. `feat(ui): add merge queue action affordances`
 
 ## Success Criteria
 
