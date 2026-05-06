@@ -6,6 +6,7 @@ defmodule Vela.Evidence do
   import Ecto.Query
 
   alias Vela.Evidence.EvidenceEvent
+  alias Vela.Evidence.Alarms
   alias Vela.Evidence.EventTypes
   alias Vela.Evidence.Verifier
   alias Vela.Repo
@@ -101,7 +102,14 @@ defmodule Vela.Evidence do
   end
 
   def verify_chain(organization_id, repository_id \\ nil) do
-    Verifier.verify_chain(organization_id, repository_id)
+    case Verifier.verify_chain(organization_id, repository_id) do
+      {:error, error} = result ->
+        Alarms.record_tamper!(organization_id, repository_id, error)
+        result
+
+      result ->
+        result
+    end
   end
 
   def hash(value),
