@@ -139,6 +139,57 @@ defmodule VelaWeb.AppLiveTest do
     assert html =~ "Not generated"
   end
 
+  test "PR comment form validates input and records review evidence", %{conn: conn} do
+    [pr | _] = Forge.active_pull_requests()
+
+    {:ok, view, _html} =
+      live(conn, "/repos/#{pr.repository.organization.slug}/#{pr.repository.slug}/pulls/#{pr.id}")
+
+    invalid_html =
+      view
+      |> form("#pr-comment-form", comment: %{body: ""})
+      |> render_submit()
+
+    assert invalid_html =~ "Comment body is required."
+
+    body = "Reviewed queue readiness #{System.unique_integer([:positive])}"
+
+    html =
+      view
+      |> form("#pr-comment-form",
+        comment: %{body: "  #{body}  ", publish_to_github: "true"}
+      )
+      |> render_submit()
+
+    assert html =~ body
+
+    updated =
+      Forge.get_pull_request_for_route!(
+        pr.repository.organization.slug,
+        pr.repository.slug,
+        pr.id
+      )
+
+    assert Enum.any?(updated.reviews, &(&1.status == "comment" and &1.summary == body))
+
+    assert [
+             %{
+               event_type: "pr.updated",
+               resource_id: pr_id,
+               payload: %{
+                 "action" => "review_comment_created",
+                 "publish_to_github" => true
+               }
+             }
+             | _
+           ] =
+             pr.repository.id
+             |> Evidence.list_repository_events(20)
+             |> Enum.filter(&(&1.resource_id == pr.id and &1.event_type == "pr.updated"))
+
+    assert pr_id == pr.id
+  end
+
   test "agents launches evidence and settings render", %{conn: conn} do
     [agent | _] = Agents.list_agent_profiles()
 
