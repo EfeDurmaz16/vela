@@ -1,14 +1,6 @@
 defmodule Vela.Evidence.EvidenceEvent do
   use Vela.Schema
 
-  @event_types ~w(
-    repo.created repo.import_queued repo.imported push.received branch.updated pr.opened pr.updated pr.synced
-    pr.comment.created review.submitted agent.session.started agent.session.completed analysis.started
-    analysis.completed score.computed policy.evaluated merge.simulated merge.queued
-    merge.completed merge.blocked deployment.approved deployment.blocked
-    integration.event_received
-  )
-
   schema "evidence_events" do
     field :event_type, :string
     field :resource_type, :string
@@ -26,7 +18,7 @@ defmodule Vela.Evidence.EvidenceEvent do
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
 
-  def event_types, do: @event_types
+  def event_types, do: Vela.Evidence.EventTypes.all()
 
   def changeset(event, attrs) do
     event
@@ -52,7 +44,7 @@ defmodule Vela.Evidence.EvidenceEvent do
       :payload_hash,
       :event_hash
     ])
-    |> Vela.Validation.validate_inclusion(:event_type, @event_types)
+    |> Vela.Validation.validate_inclusion(:event_type, event_types())
     |> unique_constraint(:event_hash)
   end
 end
