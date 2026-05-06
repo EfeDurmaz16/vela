@@ -14,6 +14,11 @@ defmodule VelaWeb.AppLiveTest do
     assert html =~ "GitHub stores code"
     assert html =~ "Add agent spending policy enforcement"
     assert html =~ "Evidence hash chain"
+    assert html =~ ~s(href="/repos")
+    assert html =~ "Pull Requests"
+    assert html =~ "Launches"
+    assert html =~ "Agents"
+    assert html =~ "Settings"
   end
 
   test "repositories and repo overview render seeded trust state", %{conn: conn} do
