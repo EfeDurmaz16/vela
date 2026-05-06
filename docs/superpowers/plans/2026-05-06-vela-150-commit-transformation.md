@@ -424,10 +424,12 @@ Completed commits from this plan:
 - 132. `test(protocol): validate event schemas in mix test`
 - 133. `feat(sdk-js): add minimal typed client`
 - 134. `test(sdk-js): add client serialization tests`
+- 135. `feat(protocol): add webhook payload schema examples`
+- 136. `test(protocol): validate webhook examples`
 
 Next recommended commit:
 
-- 135. `feat(protocol): add webhook payload schema examples`
+- 137. `docs(sdk): add curl and JS quickstart`
 
 ## Success Criteria
 
