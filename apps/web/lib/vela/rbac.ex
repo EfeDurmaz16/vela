@@ -14,6 +14,7 @@ defmodule Vela.RBAC do
       {:repository, :sync_pull_request},
       {:repository, :update},
       {:change, :update},
+      {:pull_request, :merge},
       {:pull_request, :update},
       {:review, :create},
       {:merge_candidate, :simulate},

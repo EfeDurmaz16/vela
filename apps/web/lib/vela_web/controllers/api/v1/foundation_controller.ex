@@ -169,18 +169,22 @@ defmodule VelaWeb.Api.V1.FoundationController do
   end
 
   def create_pr_comment(conn, %{"id" => id, "body" => body} = params) do
-    with {:ok, pull_request} <- fetch_pull_request(conn, id) do
+    with {:ok, pull_request} <- fetch_pull_request(conn, id),
+         :ok <- authorize(conn, :review, :create) do
       PullRequestActions.create_comment(conn, pull_request, body, params)
     else
       {:error, :not_found} -> Response.pull_request_not_found(conn)
+      {:error, :forbidden} -> Response.forbidden(conn)
     end
   end
 
   def queue_pr_merge(conn, %{"id" => id}) do
-    with {:ok, pull_request} <- fetch_pull_request(conn, id) do
+    with {:ok, pull_request} <- fetch_pull_request(conn, id),
+         :ok <- authorize(conn, :pull_request, :merge) do
       PullRequestActions.queue_merge(conn, pull_request)
     else
       {:error, :not_found} -> Response.pull_request_not_found(conn)
+      {:error, :forbidden} -> Response.forbidden(conn)
     end
   end
 
