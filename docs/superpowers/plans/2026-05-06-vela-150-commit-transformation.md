@@ -357,10 +357,14 @@ Completed commits from this plan:
 - 70. `test(auth): cover token hash verification`
 - 71. `docs(security): document demo mode and auth posture`
 - 72. `docs(api): mark auth requirements per endpoint`
+- 73. `feat(github): import repository branches`
+- 74. `test(github): cover branch import mapping`
+- 75. `feat(github): import PR changed files`
+- 76. `test(github): cover changed-file mapping`
 
 Next recommended commit:
 
-- 73. `feat(github): import repository branches`
+- 77. `feat(git): add normalized diff model`
 
 ## Success Criteria
 
