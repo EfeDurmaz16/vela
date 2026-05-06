@@ -426,10 +426,15 @@ Completed commits from this plan:
 - 134. `test(sdk-js): add client serialization tests`
 - 135. `feat(protocol): add webhook payload schema examples`
 - 136. `test(protocol): validate webhook examples`
+- corrective. `fix(sdk-js): align PR sync route`
+- 137. `docs(sdk): add curl and JS quickstart`
+- 138. `docs(contrib): add contribution guide`
+- 139. `chore(ci): add GitHub Actions check workflow`
+- 140. `test(ci): document required local parity commands`
 
 Next recommended commit:
 
-- 137. `docs(sdk): add curl and JS quickstart`
+- 141. `docs(readme): rewrite README around trusted forge`
 
 ## Success Criteria
 
