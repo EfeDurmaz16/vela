@@ -172,12 +172,14 @@ now = DateTime.utc_now() |> DateTime.truncate(:second)
     protected: false
   })
 
-{:ok, _vela_main} =
+{:ok, vela_main} =
   Forge.create_branch(%{
     repository_id: vela_repo.id,
     name: "main",
     current_sha: "45f2c3e5d36e466a65c7698872df0462f621b988",
-    protected: true
+    protected: true,
+    required_approvals: 1,
+    required_checks: ["test"]
   })
 
 {:ok, _vela_feature} =
@@ -239,12 +241,62 @@ now = DateTime.utc_now() |> DateTime.truncate(:second)
     risk_level: "high"
   })
 
+{:ok, stale_pr} =
+  Forge.create_pull_request(%{
+    repository_id: vela_repo.id,
+    author_actor_id: agent_actor.id,
+    title: "Queue stale base branch example",
+    description: "Approved PR whose base SHA no longer matches protected main.",
+    source_branch: "agent/stale-base-example",
+    target_branch: "main",
+    head_sha: "a2b2e52ad8b3f8779f1760c6bb47b816f704be20",
+    base_sha: "1111111111111111111111111111111111111111",
+    status: "ready_for_review",
+    intent: "Demonstrate stale base denial before queue admission.",
+    behavioral_summary:
+      "Shows that approval and readiness are insufficient when the protected base branch moved.",
+    risk_level: "medium"
+  })
+
+{:ok, review_blocked_pr} =
+  Forge.create_pull_request(%{
+    repository_id: vela_repo.id,
+    author_actor_id: agent_actor.id,
+    title: "Queue blocking review example",
+    description: "PR with explicit request-changes review before merge queue.",
+    source_branch: "agent/blocking-review-example",
+    target_branch: "main",
+    head_sha: "b3c3f63be9c4f988a02871d7cc58c9270815cf31",
+    base_sha: vela_main.current_sha,
+    status: "blocked",
+    intent: "Demonstrate blocking review denial before queue admission.",
+    behavioral_summary:
+      "Keeps a visible blocked queue example with reviewer-owned denial semantics.",
+    risk_level: "high"
+  })
+
 {:ok, _review} =
   Forge.create_review(%{
     pull_request_id: ship_pr.id,
     actor_id: human_actor.id,
     status: "approve",
     summary: "Policy boundary is explicit. Ship after preserving the negative-path test evidence."
+  })
+
+{:ok, _stale_review} =
+  Forge.create_review(%{
+    pull_request_id: stale_pr.id,
+    actor_id: human_actor.id,
+    status: "approve",
+    summary: "Approved, but main moved after this review."
+  })
+
+{:ok, _blocking_review} =
+  Forge.create_review(%{
+    pull_request_id: review_blocked_pr.id,
+    actor_id: human_actor.id,
+    status: "request_changes",
+    summary: "Do not queue until the failing test and ownership questions are resolved."
   })
 
 {:ok, _issue} =
@@ -343,6 +395,7 @@ trust_readiness =
     pull_request_id: ship_pr.id,
     base_sha: ship_pr.base_sha,
     head_sha: ship_pr.head_sha,
+    target_branch: ship_pr.target_branch,
     virtual_merge_sha: "9bb6fd1e29dd7d21a127f5b8986e20a2f6cfa732",
     virtual_merge_tree_hash: "tree:ship-demo-virtual",
     tested_tree_hash: "tree:ship-demo-tested",
@@ -414,6 +467,7 @@ blocked_score_attrs =
     pull_request_id: blocked_pr.id,
     base_sha: blocked_pr.base_sha,
     head_sha: blocked_pr.head_sha,
+    target_branch: blocked_pr.target_branch,
     virtual_merge_sha: nil,
     virtual_merge_tree_hash: "tree:block-demo-virtual",
     tested_tree_hash: "tree:block-demo-tested",
@@ -435,11 +489,90 @@ blocked_score_attrs =
     }
   })
 
+vela_queue_readiness =
+  Maestro.compute_readiness(%{
+    confidence: "high",
+    dimensions: %{
+      "repository_trust" => 72,
+      "change_risk" => 80,
+      "test_evidence" => 78,
+      "security" => 76,
+      "performance" => 81,
+      "agent_provenance" => 70,
+      "launch_readiness" => 82
+    }
+  })
+
+{:ok, _vela_queue_readiness_score} =
+  Maestro.create_readiness_score(
+    vela_queue_readiness
+    |> Map.merge(%{
+      organization_id: org.id,
+      repository_id: vela_repo.id,
+      explanation:
+        "Seeded ship readiness so stale-base and blocking-review examples isolate their gate failures.",
+      evidence_refs: []
+    })
+  )
+
+{:ok, stale_candidate} =
+  Merge.create_merge_candidate(%{
+    repository_id: vela_repo.id,
+    pull_request_id: stale_pr.id,
+    base_sha: stale_pr.base_sha,
+    head_sha: stale_pr.head_sha,
+    target_branch: stale_pr.target_branch,
+    virtual_merge_sha: nil,
+    virtual_merge_tree_hash: nil,
+    tested_tree_hash: nil,
+    final_merge_tree_hash: nil,
+    status: "pending",
+    queue_position: nil,
+    policy_result: %{
+      "verdict" => "block",
+      "reasons" => ["stale_base_sha"],
+      "expected_base_sha" => vela_main.current_sha,
+      "observed_base_sha" => stale_pr.base_sha
+    },
+    rollback_plan: %{
+      "status" => "not-generated",
+      "reason" => "candidate blocked before queue admission"
+    }
+  })
+
+{:ok, review_blocked_candidate} =
+  Merge.create_merge_candidate(%{
+    repository_id: vela_repo.id,
+    pull_request_id: review_blocked_pr.id,
+    base_sha: review_blocked_pr.base_sha,
+    head_sha: review_blocked_pr.head_sha,
+    target_branch: review_blocked_pr.target_branch,
+    virtual_merge_sha: nil,
+    virtual_merge_tree_hash: nil,
+    tested_tree_hash: nil,
+    final_merge_tree_hash: nil,
+    status: "blocked",
+    queue_position: nil,
+    policy_result: %{
+      "verdict" => "block",
+      "reasons" => ["blocking_review"]
+    },
+    rollback_plan: %{
+      "status" => "not-generated",
+      "reason" => "candidate blocked by reviewer before queue admission"
+    }
+  })
+
 {:ok, _blocked_pr} =
   Forge.update_pull_request(blocked_pr, %{
     readiness_score_id: blocked_score.id,
     merge_candidate_id: blocked_candidate.id
   })
+
+{:ok, _stale_pr} = Forge.update_pull_request(stale_pr, %{merge_candidate_id: stale_candidate.id})
+
+{:ok, _review_blocked_pr} =
+  Forge.update_pull_request(review_blocked_pr, %{merge_candidate_id: review_blocked_candidate.id})
 
 {:ok, runner} =
   Pipelines.create_runner(%{
@@ -572,6 +705,20 @@ for {event_type, actor, repo, resource_type, resource_id, payload} <- [
          "verdict" => "block",
          "score" => 54,
          "reasons" => blocked_candidate.policy_result["reasons"]
+       }},
+      {"merge.blocked", merge_actor, vela_repo, "pull_request", stale_pr.id,
+       %{
+         "verdict" => "block",
+         "score" => vela_queue_readiness.score,
+         "reasons" => stale_candidate.policy_result["reasons"],
+         "expected_base_sha" => vela_main.current_sha,
+         "observed_base_sha" => stale_pr.base_sha
+       }},
+      {"merge.blocked", human_actor, vela_repo, "pull_request", review_blocked_pr.id,
+       %{
+         "verdict" => "block",
+         "score" => vela_queue_readiness.score,
+         "reasons" => review_blocked_candidate.policy_result["reasons"]
        }}
     ] do
   {:ok, _event} =
