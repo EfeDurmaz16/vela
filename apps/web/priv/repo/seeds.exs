@@ -11,6 +11,7 @@ alias Vela.Repo
 for schema <- [
       Vela.Outbox.OutboxEvent,
       Vela.Idempotency.IdempotencyKey,
+      Vela.Evidence.TamperAlarm,
       Vela.Forge.RepositoryTrustSignal,
       Vela.Integrations.ServiceConnection,
       Vela.Integrations.Environment,
@@ -527,6 +528,25 @@ blocked_score_attrs =
     rollback_plan: %{"strategy" => "revert-merge-commit"}
   })
 
+for {event_type, actor, resource_type, resource_id, payload} <- [
+      {"repo.created", human_actor, "repository", sardis_repo.id,
+       %{"name" => sardis_repo.name, "visibility" => sardis_repo.visibility}},
+      {"repo.created", human_actor, "repository", vela_repo.id,
+       %{"name" => vela_repo.name, "visibility" => vela_repo.visibility}},
+      {"integration.event_received", merge_actor, "integration", integration.id,
+       %{"provider" => integration.provider, "status" => integration.status}}
+    ] do
+  {:ok, _event} =
+    Evidence.append_event(%{
+      organization_id: org.id,
+      actor_id: actor.id,
+      event_type: event_type,
+      resource_type: resource_type,
+      resource_id: resource_id,
+      payload: payload
+    })
+end
+
 for {event_type, actor, repo, resource_type, resource_id, payload} <- [
       {"agent.session.started", agent_actor, sardis_repo, "agent_session", session.id,
        %{"task_intent" => session.task_intent, "model" => session.model}},
@@ -564,4 +584,10 @@ for {event_type, actor, repo, resource_type, resource_id, payload} <- [
     })
 end
 
-IO.puts("Seeded Vela Phase 0 demo workspace for #{org.name}.")
+{:ok, org_chain} = Evidence.verify_chain(org.id)
+{:ok, sardis_chain} = Evidence.verify_chain(org.id, sardis_repo.id)
+{:ok, vela_chain} = Evidence.verify_chain(org.id, vela_repo.id)
+
+IO.puts(
+  "Seeded Vela Phase 0 demo workspace for #{org.name}. Evidence chains: org=#{org_chain.count}, sardis=#{sardis_chain.count}, vela=#{vela_chain.count}."
+)
