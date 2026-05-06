@@ -6,11 +6,23 @@ defmodule VelaWeb.EvidencePageComponents do
   use VelaWeb, :html
 
   attr :evidence_events, :list, default: []
+  attr :verifier_statuses, :list, default: []
 
   def evidence_page(assigns) do
     ~H"""
     <div class="space-y-6">
       <.section_header title="Evidence Ledger" kicker="Can we reconstruct what happened?" />
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div :for={status <- @verifier_statuses} class="panel p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted-fg">
+            {status.repository}
+          </p>
+          <p class={["mt-3 text-lg font-semibold", verifier_class(status.state)]}>
+            {status.label}
+          </p>
+          <p class="mt-2 text-sm text-muted-fg">{status.detail}</p>
+        </div>
+      </div>
       <div class="panel p-5">
         <div class="mb-4 flex flex-wrap gap-2 text-xs text-muted-fg">
           <span class="rounded-md border border-border px-2 py-1">actor</span>
@@ -43,4 +55,8 @@ defmodule VelaWeb.EvidencePageComponents do
     </section>
     """
   end
+
+  defp verifier_class(:healthy), do: "text-success"
+  defp verifier_class(:empty), do: "text-muted-fg"
+  defp verifier_class(:tampered), do: "text-danger"
 end

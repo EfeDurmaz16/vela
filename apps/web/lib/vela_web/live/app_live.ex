@@ -2,6 +2,7 @@ defmodule VelaWeb.AppLive do
   use VelaWeb, :live_view
 
   alias Vela.{Accounts, Actors, Agents, Evidence, Forge, Integrations, Jobs, Merge, Repo}
+  alias Vela.Evidence.Verifier, as: EvidenceVerifier
   import VelaWeb.AppShellComponents
   import VelaWeb.EvidencePageComponents
   import VelaWeb.PullRequestPageComponents
@@ -23,13 +24,16 @@ defmodule VelaWeb.AppLive do
   end
 
   defp assign_common(socket) do
+    repositories = Forge.list_repositories()
+
     assign(socket,
-      repositories: Forge.list_repositories(),
+      repositories: repositories,
       active_prs: Forge.active_pull_requests(),
       pull_requests: Forge.list_pull_requests(),
       agents: Agents.list_agent_profiles(),
       sessions: Agents.list_recent_sessions(),
       evidence_events: Evidence.list_recent_events(20),
+      evidence_verifier_statuses: evidence_verifier_statuses(repositories),
       integration_status: Integrations.phase_zero_status(),
       import_form: %{"owner" => "", "repo" => ""},
       import_error: nil,
@@ -351,7 +355,10 @@ defmodule VelaWeb.AppLive do
 
   defp page(%{live_action: :evidence} = assigns) do
     ~H"""
-    <.evidence_page evidence_events={@evidence_events} />
+    <.evidence_page
+      evidence_events={@evidence_events}
+      verifier_statuses={@evidence_verifier_statuses}
+    />
     """
   end
 
@@ -555,4 +562,41 @@ defmodule VelaWeb.AppLive do
     do: "Cannot move merge from #{from} to #{to}."
 
   defp merge_gate_message(reason), do: "Merge queue gate failed: #{inspect(reason)}."
+
+  defp evidence_verifier_statuses(repositories) do
+    Enum.map(repositories, fn repository ->
+      case EvidenceVerifier.verify_chain(repository.organization_id, repository.id) do
+        {:ok, %{count: 0}} ->
+          %{
+            repository: repository.name,
+            state: :empty,
+            label: "No evidence",
+            detail: "No repository-scoped evidence events have been recorded."
+          }
+
+        {:ok, %{count: count, last_hash: last_hash}} ->
+          %{
+            repository: repository.name,
+            state: :healthy,
+            label: "Chain healthy",
+            detail: "#{count} events verified. Last hash #{evidence_short_hash(last_hash)}."
+          }
+
+        {:error, %{reason: reason, event_id: event_id}} ->
+          %{
+            repository: repository.name,
+            state: :tampered,
+            label: "Chain tampered",
+            detail: "#{reason} at event #{evidence_short_id(event_id)}."
+          }
+      end
+    end)
+  end
+
+  defp evidence_short_hash(nil), do: "none"
+
+  defp evidence_short_hash(hash),
+    do: hash |> String.replace_prefix("sha256:", "") |> String.slice(0, 12)
+
+  defp evidence_short_id(id), do: id |> to_string() |> String.slice(0, 8)
 end
