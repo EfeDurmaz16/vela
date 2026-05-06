@@ -431,10 +431,19 @@ Completed commits from this plan:
 - 138. `docs(contrib): add contribution guide`
 - 139. `chore(ci): add GitHub Actions check workflow`
 - 140. `test(ci): document required local parity commands`
+- 141. `docs(readme): rewrite README around trusted forge`
+- 142. `docs(readme): add honest status matrix`
+- 143. `docs(roadmap): split shipped in-progress planned`
+- 144. `docs(security): add threat model summary`
+- 145. `docs(api): add auth and idempotency examples`
+- 146. `docs: add architecture diagram in Mermaid`
+- 147. `chore(repo): add issue templates`
+- 148. `chore(repo): add PR template`
+- 149. `chore(repo): final check script and status audit`
 
 Next recommended commit:
 
-- 141. `docs(readme): rewrite README around trusted forge`
+- 150. `docs: add final transformation summary`
 
 ## Success Criteria
 
