@@ -74,6 +74,69 @@ defmodule VelaWeb.AppLiveTest do
     assert html =~ "Raw Code Diff"
   end
 
+  test "PR cockpit renders blocking findings for risky pull requests", %{conn: conn} do
+    pr =
+      Forge.active_pull_requests()
+      |> Enum.find(&(&1.title == "Refactor auth token validation"))
+
+    {:ok, _view, html} =
+      live(conn, "/repos/#{pr.repository.organization.slug}/#{pr.repository.slug}/pulls/#{pr.id}")
+
+    assert html =~ pr.title
+    assert html =~ "block"
+    assert html =~ "missing negative-path tests"
+    assert html =~ "modifies auth and billing permissions together"
+    assert html =~ "agent exceeded path scope"
+    assert html =~ "Status blocked"
+  end
+
+  test "PR cockpit renders unknown readiness and missing merge candidate states", %{conn: conn} do
+    [seed_pr | _] = Forge.active_pull_requests()
+
+    {:ok, org} =
+      Accounts.create_organization(%{
+        name: "Unknown Readiness Org",
+        slug: "unknown-readiness-#{System.unique_integer([:positive])}"
+      })
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "unscored-core",
+        slug: "unscored-core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "degraded",
+        risk_level: "critical",
+        repo_cell_id: nil
+      })
+
+    {:ok, pr} =
+      Forge.create_pull_request(%{
+        repository_id: repo.id,
+        author_actor_id: seed_pr.author_actor.id,
+        title: "Unscored auth boundary change",
+        description: "Pull request without analysis metadata.",
+        source_branch: "agent/unscored-auth-boundary",
+        target_branch: "main",
+        head_sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        base_sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        status: "open",
+        intent: "Exercise unknown readiness rendering.",
+        behavioral_summary: "No analysis has completed for this change yet.",
+        risk_level: "critical"
+      })
+
+    {:ok, _view, html} = live(conn, "/repos/#{org.slug}/#{repo.slug}/pulls/#{pr.id}")
+
+    assert html =~ "Unscored auth boundary change"
+    assert html =~ "unknown"
+    assert html =~ "Run analysis before treating this pull request as queue-ready."
+    assert html =~ "Human review required"
+    assert html =~ "No merge candidate"
+    assert html =~ "Not generated"
+  end
+
   test "agents launches evidence and settings render", %{conn: conn} do
     [agent | _] = Agents.list_agent_profiles()
 
