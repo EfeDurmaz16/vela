@@ -407,10 +407,15 @@ Completed commits from this plan:
 - 118. `test(live): cover PR cockpit risk states`
 - 119. `refactor(ui): extract evidence page module`
 - 120. `test(live): cover evidence empty and populated states`
+- corrective. `fix(test): disable parallel preloads in sandbox`
+- 121. `feat(ui): add repository import form`
+- 122. `test(live): cover repository import form`
+- 123. `feat(ui): add PR comment form`
+- 124. `test(live): cover PR comment form`
 
 Next recommended commit:
 
-- 121. `feat(ui): add merge queue action affordances`
+- 125. `feat(ui): add merge queue button with gate errors`
 
 ## Success Criteria
 
