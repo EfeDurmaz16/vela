@@ -1,10 +1,8 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs}
-  alias Vela.Repo
-  alias VelaWeb.Api.V1.IdempotentMutation
-  alias VelaWeb.Api.V1.MutationAudit
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations}
+  alias VelaWeb.Api.V1.MergeActions
   alias VelaWeb.Api.V1.PullRequestActions
   alias VelaWeb.Api.V1.ReadModels
   alias VelaWeb.Api.V1.RepoActions
@@ -145,18 +143,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
   def sync_pull_request(conn, %{"id" => id, "number" => number}) do
     with {:ok, repository} <- fetch_repo(conn, id),
          {:ok, number} <- parse_positive_integer(number) do
-      IdempotentMutation.respond(conn, repository.organization_id, fn ->
-        {:ok, job} =
-          Jobs.enqueue(:repo_sync, %{
-            organization_id: repository.organization_id,
-            repository_id: repository.id,
-            actor_id: conn.assigns.current_actor.id,
-            provider: repository.provider || "github",
-            pull_request_number: number
-          })
-
-        {202, %{data: %{repository_id: id, job: job_payload(job)}}}
-      end)
+      RepoActions.sync_pull_request(conn, repository, number)
     else
       {:error, :not_found} ->
         Response.repo_not_found(conn)
@@ -198,38 +185,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   def import_repo(conn, params), do: RepoActions.import_repo(conn, params)
 
-  def simulate_merge(conn, %{"id" => id}) do
-    candidate =
-      Vela.Merge.MergeCandidate
-      |> Repo.get!(id)
-      |> Repo.preload(:repository)
-
-    IdempotentMutation.respond(conn, candidate.repository.organization_id, fn ->
-      {:ok, job} =
-        Repo.transaction(fn ->
-          {:ok, job} =
-            Jobs.enqueue(:merge_simulation, %{
-              organization_id: candidate.repository.organization_id,
-              repository_id: candidate.repository_id,
-              merge_candidate_id: candidate.id,
-              pull_request_id: candidate.pull_request_id
-            })
-
-          MutationAudit.record_job_accepted!(conn, %{
-            organization_id: candidate.repository.organization_id,
-            repository_id: candidate.repository_id,
-            event_type: "merge.queued",
-            resource_type: "merge_candidate",
-            resource_id: candidate.id,
-            job: job
-          })
-
-          job
-        end)
-
-      {202, %{data: %{merge_candidate_id: id, job: job_payload(job)}}}
-    end)
-  end
+  def simulate_merge(conn, params), do: MergeActions.simulate(conn, params)
 
   def webhook(conn, params), do: WebhookActions.ingest(conn, params)
 
@@ -266,9 +222,5 @@ defmodule VelaWeb.Api.V1.FoundationController do
       {number, ""} when number > 0 -> {:ok, number}
       _ -> {:error, :invalid_number}
     end
-  end
-
-  defp job_payload(%Oban.Job{} = job) do
-    %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
   end
 end

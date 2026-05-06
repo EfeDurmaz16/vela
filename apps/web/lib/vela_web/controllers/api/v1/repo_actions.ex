@@ -53,6 +53,21 @@ defmodule VelaWeb.Api.V1.RepoActions do
     end
   end
 
+  def sync_pull_request(conn, repository, number) do
+    IdempotentMutation.respond(conn, repository.organization_id, fn ->
+      {:ok, job} =
+        Jobs.enqueue(:repo_sync, %{
+          organization_id: repository.organization_id,
+          repository_id: repository.id,
+          actor_id: conn.assigns.current_actor.id,
+          provider: repository.provider || "github",
+          pull_request_number: number
+        })
+
+      {202, %{data: %{repository_id: repository.id, job: job_payload(job)}}}
+    end)
+  end
+
   def import_repo(conn, %{"id" => id}) do
     repository = Repo.get!(Vela.Forge.Repository, id)
 
