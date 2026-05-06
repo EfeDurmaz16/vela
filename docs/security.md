@@ -27,4 +27,16 @@ Protected API routes rehydrate `current_user`, `current_organization`, `current_
 
 API token storage is modeled, but token issuance is not exposed yet. Token records are scoped to an organization and actor, carry explicit scopes, require expiry and have status metadata. Raw tokens must never be stored. Token hashes use HMAC-SHA256 with a Vela API-token purpose string and are verified with constant-time comparison.
 
+## Threat Model Summary
+
+| Threat | Current mitigation | Remaining work |
+| --- | --- | --- |
+| Cross-tenant data access | Protected routes rehydrate tenant identity from the signed session and fetch tenant-owned resources before mutation. | Tenant-scoped API tokens and broader read-route hardening for production deployments. |
+| Unauthorized merge queueing | RBAC plus merge gates block queue entry before a merge candidate can move to `queued`. | Provider-side merge execution adapter must preserve the same gates and evidence requirements. |
+| Webhook spoofing or replay | Provider-native signatures, Vela HMAC fallback, constant-time comparison and timestamp replay windows. | Delivery audit, dead-letter handling and per-provider operational dashboards. |
+| Evidence tampering | Payload hashes, previous-hash continuity, event envelope hashes and verifier alarms. | Mandatory signatures for critical machine actors and export package signing. |
+| Idempotency abuse | Mutating job routes replay identical `Idempotency-Key` requests and reject key reuse with a different body. | Expiry/retention policy for idempotency records at production scale. |
+| Secret leakage | Docs and contribution rules forbid raw token, key, webhook secret or credential logging. | Automated secret scanning in CI and deployment pipelines. |
+| Untrusted model output | Phase 0 does not let LLM output execute privileged actions directly. | External Maestro service must keep model output advisory until policy and human gates approve execution. |
+
 Model output is always untrusted. LLM calls are not implemented in Phase 0.
