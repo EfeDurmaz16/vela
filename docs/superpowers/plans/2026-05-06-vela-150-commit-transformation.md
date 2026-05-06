@@ -273,6 +273,9 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 - [x] Implement Commit 43: split webhook signature verifiers by provider.
 - [x] Implement Commit 44: add provider verifier matrix tests.
 - [x] Implement Commit 45: update backend module map docs.
+- [x] Implement Commit 46: add evidence chain verifier.
+- [x] Implement Commit 47: add tamper detection coverage.
+- [x] Implement Commit 48: add empty and single-event chain verifier coverage.
 - [x] Run focused API tests after each extraction.
 - [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
 
@@ -316,10 +319,13 @@ Completed commits from this plan:
 - 43. `refactor(webhooks): split signature providers`
 - 44. `test(webhooks): cover provider verifier matrix`
 - 45. `docs: update backend module map`
+- 46. `feat(evidence): add chain verifier`
+- 47. `test(evidence): detect broken hash chain`
+- 48. `test(evidence): verify empty and single-event chains`
 
 Next recommended commit:
 
-- 46. `feat(evidence): add chain verifier`
+- 49. `feat(evidence): add verification API endpoint`
 
 ## Success Criteria
 
