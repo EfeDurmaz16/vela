@@ -84,9 +84,9 @@ defmodule Vela.Forge do
           additions: attrs.additions,
           deletions: attrs.deletions,
           changes: attrs.changes,
-          patch: attrs.patch,
-          blob_url: attrs.blob_url,
-          raw_url: attrs.raw_url,
+          patch: Map.get(attrs, :patch),
+          blob_url: Map.get(attrs, :blob_url),
+          raw_url: Map.get(attrs, :raw_url),
           updated_at: now
         ]
       ],
