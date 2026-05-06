@@ -2,9 +2,9 @@ defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
   alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Merge, Webhooks}
-  alias Vela.Outbox.OutboxEvent
   alias Vela.Repo
   alias VelaWeb.Api.V1.IdempotentMutation
+  alias VelaWeb.Api.V1.MutationAudit
   alias VelaWeb.Api.V1.Response
 
   import Ecto.Query
@@ -178,7 +178,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
              summary: body
            }),
          {:ok, github_payload} <- maybe_publish_github_comment(pull_request, body, params),
-         :ok <- record_pr_comment!(conn, pull_request, review, github_payload) do
+         :ok <- MutationAudit.record_pr_comment!(conn, pull_request, review, github_payload) do
       conn
       |> put_status(:created)
       |> json(%{data: review |> Response.serialize() |> Map.put(:github, github_payload)})
@@ -195,7 +195,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
            Repo.transaction(fn ->
              case Merge.queue_after_successful_review(pull_request) do
                {:ok, candidate} ->
-                 record_merge_queued!(conn, pull_request, candidate)
+                 MutationAudit.record_merge_queued!(conn, pull_request, candidate)
                  candidate
 
                {:error, reason} ->
@@ -230,7 +230,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
                 repo: repo_name
               })
 
-            record_job_accepted!(conn, %{
+            MutationAudit.record_job_accepted!(conn, %{
               organization_id: repository.organization_id,
               repository_id: repository.id,
               event_type: "repo.import_queued",
@@ -300,7 +300,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
               repo: conn.params["repo"] || repository.slug
             })
 
-          record_job_accepted!(conn, %{
+          MutationAudit.record_job_accepted!(conn, %{
             organization_id: repository.organization_id,
             repository_id: repository.id,
             event_type: "repo.import_queued",
@@ -333,7 +333,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
               pull_request_id: candidate.pull_request_id
             })
 
-          record_job_accepted!(conn, %{
+          MutationAudit.record_job_accepted!(conn, %{
             organization_id: candidate.repository.organization_id,
             repository_id: candidate.repository_id,
             event_type: "merge.queued",
@@ -446,70 +446,6 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   defp maybe_publish_github_comment(_pull_request, _body, _params), do: {:ok, nil}
 
-  defp record_pr_comment!(conn, pull_request, review, github_payload) do
-    payload = %{
-      review_id: review.id,
-      pull_request_id: pull_request.id,
-      github: github_payload
-    }
-
-    {:ok, _event} =
-      Evidence.append_event(%{
-        organization_id: conn.assigns.current_organization.id,
-        repository_id: pull_request.repository_id,
-        actor_id: conn.assigns.current_actor.id,
-        event_type: "pr.comment.created",
-        resource_type: "pull_request",
-        resource_id: pull_request.id,
-        payload: payload
-      })
-
-    %OutboxEvent{}
-    |> OutboxEvent.changeset(%{
-      organization_id: conn.assigns.current_organization.id,
-      repository_id: pull_request.repository_id,
-      event_type: "pr.comment.created",
-      payload: payload,
-      status: "pending"
-    })
-    |> Repo.insert!()
-
-    :ok
-  end
-
-  defp record_merge_queued!(conn, pull_request, candidate) do
-    payload = %{
-      pull_request_id: pull_request.id,
-      merge_candidate_id: candidate.id,
-      base_sha: candidate.base_sha,
-      head_sha: candidate.head_sha,
-      queued_by_actor_id: conn.assigns.current_actor.id
-    }
-
-    {:ok, _event} =
-      Evidence.append_event(%{
-        organization_id: conn.assigns.current_organization.id,
-        repository_id: pull_request.repository_id,
-        actor_id: conn.assigns.current_actor.id,
-        event_type: "merge.queued",
-        resource_type: "merge_candidate",
-        resource_id: candidate.id,
-        payload: payload
-      })
-
-    %OutboxEvent{}
-    |> OutboxEvent.changeset(%{
-      organization_id: conn.assigns.current_organization.id,
-      repository_id: pull_request.repository_id,
-      event_type: "merge.queued",
-      payload: payload,
-      status: "pending"
-    })
-    |> Repo.insert!()
-
-    :ok
-  end
-
   defp ensure_github_provider("github"), do: :ok
   defp ensure_github_provider(_provider), do: {:error, :unsupported_provider}
 
@@ -547,36 +483,6 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   defp job_payload(%Oban.Job{} = job) do
     %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
-  end
-
-  defp record_job_accepted!(conn, attrs) do
-    payload = %{
-      job_id: attrs.job.id,
-      job_kind: attrs.job.args["kind"],
-      queue: attrs.job.queue,
-      actor_id: conn.assigns.current_actor.id
-    }
-
-    {:ok, _event} =
-      Evidence.append_event(%{
-        organization_id: attrs.organization_id,
-        repository_id: attrs.repository_id,
-        actor_id: conn.assigns.current_actor.id,
-        event_type: attrs.event_type,
-        resource_type: attrs.resource_type,
-        resource_id: attrs.resource_id,
-        payload: payload
-      })
-
-    %OutboxEvent{}
-    |> OutboxEvent.changeset(%{
-      organization_id: attrs.organization_id,
-      repository_id: attrs.repository_id,
-      event_type: attrs.event_type,
-      payload: Map.put(payload, :resource_id, attrs.resource_id),
-      status: "pending"
-    })
-    |> Repo.insert!()
   end
 
   defp validate_webhook_context(organization_id, actor_id, repository_id) do
