@@ -24,10 +24,10 @@ export class VelaClient {
   }
 
   async syncPullRequest(input) {
-    const response = await this.request(
-      `/api/v1/repos/${encodeURIComponent(input.repositoryId)}/pull-requests/${input.pullRequestNumber}/sync`,
-      {method: "POST"}
-    );
+    const response = await this.request(`/api/v1/repos/${encodeURIComponent(input.repositoryId)}/sync-pull-request`, {
+      method: "POST",
+      body: JSON.stringify({number: input.pullRequestNumber})
+    });
 
     return response.data;
   }

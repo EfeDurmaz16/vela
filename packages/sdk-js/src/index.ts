@@ -76,8 +76,11 @@ export class VelaClient {
     job: VelaJob;
   }> {
     const response = await this.request<ApiResponse<{ repository_id: string; job: VelaJob }>>(
-      `/api/v1/repos/${encodeURIComponent(input.repositoryId)}/pull-requests/${input.pullRequestNumber}/sync`,
-      {method: "POST"}
+      `/api/v1/repos/${encodeURIComponent(input.repositoryId)}/sync-pull-request`,
+      {
+        method: "POST",
+        body: JSON.stringify({number: input.pullRequestNumber})
+      }
     );
 
     return response.data;

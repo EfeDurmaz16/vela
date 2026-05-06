@@ -63,8 +63,9 @@ test("syncPullRequest URL-encodes repository id", async () => {
 
   const result = await client.syncPullRequest({repositoryId: "owner/repo", pullRequestNumber: 17});
 
-  assert.equal(calls[0].url, "https://vela.test/api/v1/repos/owner%2Frepo/pull-requests/17/sync");
+  assert.equal(calls[0].url, "https://vela.test/api/v1/repos/owner%2Frepo/sync-pull-request");
   assert.equal(calls[0].init.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].init.body), {number: 17});
   assert.equal(result.job.kind, "repo_sync");
 });
 
