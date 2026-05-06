@@ -14,16 +14,37 @@ defmodule Vela.Forge.PullRequests do
     do: pull_request |> PullRequest.changeset(attrs) |> Repo.update()
 
   def upsert_by_provider(repository_id, provider, external_number, attrs) do
-    query =
-      from pr in PullRequest,
-        where:
-          pr.repository_id == ^repository_id and pr.provider == ^provider and
-            pr.external_number == ^external_number
+    now = DateTime.utc_now(:second)
 
-    case Repo.one(query) do
-      nil -> create(Map.merge(attrs, %{repository_id: repository_id, provider: provider}))
-      pull_request -> __MODULE__.update(pull_request, attrs)
-    end
+    attrs =
+      attrs
+      |> Map.merge(%{
+        repository_id: repository_id,
+        provider: provider,
+        external_number: external_number
+      })
+
+    %PullRequest{}
+    |> PullRequest.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: [
+        set: [
+          author_actor_id: attrs.author_actor_id,
+          title: attrs.title,
+          description: attrs.description,
+          source_branch: attrs.source_branch,
+          target_branch: attrs.target_branch,
+          head_sha: attrs.head_sha,
+          base_sha: attrs.base_sha,
+          status: attrs.status,
+          external_id: attrs.external_id,
+          html_url: attrs.html_url,
+          updated_at: now
+        ]
+      ],
+      conflict_target: [:repository_id, :provider, :external_number],
+      returning: true
+    )
   end
 
   def get_for_org(organization_id, id) do

@@ -72,6 +72,8 @@ defmodule Vela.Forge.PullRequest do
     |> Vela.Validation.validate_inclusion(:status, @statuses)
     |> Vela.Validation.validate_inclusion(:risk_level, @risk_levels)
     |> validate_provider()
+    |> unique_constraint([:repository_id, :provider, :external_number])
+    |> unique_constraint([:repository_id, :provider, :external_id])
   end
 
   defp validate_provider(changeset) do
