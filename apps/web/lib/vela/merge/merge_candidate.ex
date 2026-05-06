@@ -2,6 +2,7 @@ defmodule Vela.Merge.MergeCandidate do
   use Vela.Schema
 
   @statuses Vela.StateMachine.states(:merge_candidate)
+  @tree_states Vela.Merge.TreeEquivalence.states()
 
   schema "merge_candidates" do
     field :base_sha, :string
@@ -10,6 +11,7 @@ defmodule Vela.Merge.MergeCandidate do
     field :virtual_merge_tree_hash, :string
     field :tested_tree_hash, :string
     field :final_merge_tree_hash, :string
+    field :tree_state, :string, default: "unmerged"
     field :status, :string
     field :queue_position, :integer
     field :policy_result, :map, default: %{}
@@ -35,6 +37,7 @@ defmodule Vela.Merge.MergeCandidate do
       :virtual_merge_tree_hash,
       :tested_tree_hash,
       :final_merge_tree_hash,
+      :tree_state,
       :status,
       :queue_position,
       :analysis_run_id,
@@ -43,7 +46,21 @@ defmodule Vela.Merge.MergeCandidate do
     ])
     |> validate_required([:repository_id, :pull_request_id, :base_sha, :head_sha, :status])
     |> Vela.Validation.validate_inclusion(:status, @statuses)
+    |> put_tree_state()
+    |> Vela.Validation.validate_inclusion(:tree_state, @tree_states)
     |> validate_tree_equivalence()
+  end
+
+  defp put_tree_state(changeset) do
+    put_change(
+      changeset,
+      :tree_state,
+      Vela.Merge.TreeEquivalence.classify(%{
+        virtual_merge_tree_hash: get_field(changeset, :virtual_merge_tree_hash),
+        tested_tree_hash: get_field(changeset, :tested_tree_hash),
+        final_merge_tree_hash: get_field(changeset, :final_merge_tree_hash)
+      })
+    )
   end
 
   defp validate_tree_equivalence(changeset) do
