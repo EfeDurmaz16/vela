@@ -56,6 +56,28 @@ defmodule Vela.Evidence do
     |> Repo.all()
   end
 
+  def export_events(organization_id, opts \\ []) do
+    limit = opts |> Keyword.get(:limit, 100) |> clamp_limit()
+    repository_id = Keyword.get(opts, :repository_id)
+    cursor = Keyword.get(opts, :after)
+
+    events =
+      EvidenceEvent
+      |> where([e], e.organization_id == ^organization_id)
+      |> maybe_repository(repository_id)
+      |> after_cursor(cursor)
+      |> order_by([e], asc: e.inserted_at, asc: e.id)
+      |> limit(^(limit + 1))
+      |> Repo.all()
+
+    {page, extra} = Enum.split(events, limit)
+
+    %{
+      data: page,
+      next_cursor: next_cursor(page, extra)
+    }
+  end
+
   def verify_chain(organization_id, repository_id \\ nil) do
     Verifier.verify_chain(organization_id, repository_id)
   end
@@ -64,6 +86,46 @@ defmodule Vela.Evidence do
     do: "sha256:" <> (:crypto.hash(:sha256, canonical_json(value)) |> Base.encode16(case: :lower))
 
   def canonical_json(value), do: value |> normalize() |> Jason.encode!()
+
+  defp maybe_repository(query, nil), do: query
+
+  defp maybe_repository(query, repository_id) do
+    where(query, [e], e.repository_id == ^repository_id)
+  end
+
+  defp after_cursor(query, nil), do: query
+
+  defp after_cursor(query, %{"inserted_at" => inserted_at, "id" => id}) do
+    with {:ok, inserted_at, _offset} <- DateTime.from_iso8601(inserted_at) do
+      after_cursor(query, %{inserted_at: inserted_at, id: id})
+    else
+      _ -> query
+    end
+  end
+
+  defp after_cursor(query, %{inserted_at: %DateTime{} = inserted_at, id: id}) do
+    where(
+      query,
+      [e],
+      e.inserted_at > ^inserted_at or (e.inserted_at == ^inserted_at and e.id > ^id)
+    )
+  end
+
+  defp after_cursor(query, _cursor), do: query
+
+  defp next_cursor(_page, []), do: nil
+
+  defp next_cursor(page, [_extra | _]) do
+    page
+    |> List.last()
+    |> case do
+      nil -> nil
+      event -> %{"inserted_at" => DateTime.to_iso8601(event.inserted_at), "id" => event.id}
+    end
+  end
+
+  defp clamp_limit(limit) when is_integer(limit) and limit > 0 and limit <= 500, do: limit
+  defp clamp_limit(_limit), do: 100
 
   defp latest_event_hash(organization_id, nil) do
     latest_event_hash_query()
