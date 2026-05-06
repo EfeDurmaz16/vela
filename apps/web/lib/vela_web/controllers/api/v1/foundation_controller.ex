@@ -1,7 +1,7 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Merge, Webhooks}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Webhooks}
   alias Vela.Repo
   alias VelaWeb.Api.V1.IdempotentMutation
   alias VelaWeb.Api.V1.MutationAudit
@@ -179,26 +179,10 @@ defmodule VelaWeb.Api.V1.FoundationController do
   end
 
   def queue_pr_merge(conn, %{"id" => id}) do
-    with {:ok, pull_request} <- fetch_pull_request(conn, id),
-         {:ok, candidate} <-
-           Repo.transaction(fn ->
-             case Merge.queue_after_successful_review(pull_request) do
-               {:ok, candidate} ->
-                 MutationAudit.record_merge_queued!(conn, pull_request, candidate)
-                 candidate
-
-               {:error, reason} ->
-                 Repo.rollback(reason)
-             end
-           end) do
-      conn
-      |> put_status(:accepted)
-      |> json(%{
-        data: %{pull_request_id: pull_request.id, merge_candidate: Response.serialize(candidate)}
-      })
+    with {:ok, pull_request} <- fetch_pull_request(conn, id) do
+      PullRequestActions.queue_merge(conn, pull_request)
     else
       {:error, :not_found} -> Response.pull_request_not_found(conn)
-      {:error, reason} -> Response.merge_gate_error(conn, reason)
     end
   end
 

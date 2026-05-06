@@ -6,7 +6,7 @@ defmodule VelaWeb.Api.V1.PullRequestActions do
   import Phoenix.Controller
   import Plug.Conn
 
-  alias Vela.Forge
+  alias Vela.{Forge, Merge, Repo}
   alias VelaWeb.Api.V1.MutationAudit
   alias VelaWeb.Api.V1.Response
 
@@ -26,6 +26,28 @@ defmodule VelaWeb.Api.V1.PullRequestActions do
     else
       {:error, %Ecto.Changeset{} = changeset} -> Response.validation_error(conn, changeset)
       {:error, reason} -> Response.github_error(conn, reason)
+    end
+  end
+
+  def queue_merge(conn, pull_request) do
+    with {:ok, candidate} <-
+           Repo.transaction(fn ->
+             case Merge.queue_after_successful_review(pull_request) do
+               {:ok, candidate} ->
+                 MutationAudit.record_merge_queued!(conn, pull_request, candidate)
+                 candidate
+
+               {:error, reason} ->
+                 Repo.rollback(reason)
+             end
+           end) do
+      conn
+      |> put_status(:accepted)
+      |> json(%{
+        data: %{pull_request_id: pull_request.id, merge_candidate: Response.serialize(candidate)}
+      })
+    else
+      {:error, reason} -> Response.merge_gate_error(conn, reason)
     end
   end
 
