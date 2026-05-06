@@ -32,7 +32,9 @@ defmodule VelaWeb.AppLive do
       evidence_events: Evidence.list_recent_events(20),
       integration_status: Integrations.phase_zero_status(),
       import_form: %{"owner" => "", "repo" => ""},
-      import_error: nil
+      import_error: nil,
+      comment_form: %{"body" => "", "publish_to_github" => "false"},
+      comment_error: nil
     )
   end
 
@@ -62,6 +64,35 @@ defmodule VelaWeb.AppLive do
          |> assign(:import_form, params)
          |> assign(:import_error, "Repository import could not be queued.")
          |> assign(:import_errors, changeset)}
+    end
+  end
+
+  def handle_event("create_pr_comment", %{"comment" => params}, socket) do
+    case create_pr_comment(socket.assigns.pull_request, params) do
+      {:ok, _review} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Review comment recorded.")
+         |> assign(:pull_request, refresh_pull_request(socket.assigns.pull_request))
+         |> assign(:comment_form, %{"body" => "", "publish_to_github" => "false"})
+         |> assign(:comment_error, nil)}
+
+      {:error, :missing_body} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Comment body is required.")
+         |> assign(:comment_form, params)
+         |> assign(:comment_error, "Comment body is required.")}
+
+      {:error, :missing_workspace} ->
+        {:noreply, put_flash(socket, :error, "No actor is available for review comments.")}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Review comment could not be recorded.")
+         |> assign(:comment_form, params)
+         |> assign(:comment_error, "Review comment could not be recorded.")}
     end
   end
 
@@ -198,6 +229,8 @@ defmodule VelaWeb.AppLive do
       pull_request={@pull_request}
       score={@score}
       merge_candidate={@merge_candidate}
+      comment_form={@comment_form}
+      comment_error={@comment_error}
     />
     """
   end
@@ -434,5 +467,54 @@ defmodule VelaWeb.AppLive do
         owner: repository.full_name
       }
     })
+  end
+
+  defp create_pr_comment(pull_request, params) do
+    body = params |> Map.get("body", "") |> String.trim()
+    publish_to_github? = Map.get(params, "publish_to_github") == "true"
+
+    with :ok <- require_comment_body(body),
+         {:ok, _organization, actor} <- import_workspace(),
+         {:ok, review} <- Forge.create_review(comment_attrs(pull_request, actor, body)),
+         {:ok, _event} <- append_pr_comment_event(pull_request, actor, review, publish_to_github?) do
+      {:ok, review}
+    end
+  end
+
+  defp require_comment_body(""), do: {:error, :missing_body}
+  defp require_comment_body(_body), do: :ok
+
+  defp comment_attrs(pull_request, actor, body) do
+    %{
+      pull_request_id: pull_request.id,
+      actor_id: actor.id,
+      status: "comment",
+      summary: body,
+      submitted_at: DateTime.utc_now(:second)
+    }
+  end
+
+  defp append_pr_comment_event(pull_request, actor, review, publish_to_github?) do
+    Evidence.append_event(%{
+      organization_id: pull_request.repository.organization_id,
+      repository_id: pull_request.repository_id,
+      actor_id: actor.id,
+      event_type: "pr.updated",
+      resource_type: "pull_request",
+      resource_id: pull_request.id,
+      payload: %{
+        action: "review_comment_created",
+        review_id: review.id,
+        publish_to_github: publish_to_github?
+      }
+    })
+  end
+
+  defp refresh_pull_request(pull_request) do
+    Forge.get_pull_request_for_route!(
+      pull_request.repository.organization.slug,
+      pull_request.repository.slug,
+      pull_request.id
+    )
   end
 end

@@ -8,6 +8,8 @@ defmodule VelaWeb.PullRequestPageComponents do
   attr :pull_request, :map, required: true
   attr :score, :map, required: true
   attr :merge_candidate, :map, default: nil
+  attr :comment_form, :map, default: %{"body" => "", "publish_to_github" => "false"}
+  attr :comment_error, :string, default: nil
 
   def pull_request_page(assigns) do
     ~H"""
@@ -46,6 +48,39 @@ defmodule VelaWeb.PullRequestPageComponents do
         <.simple_list title="Merge Simulation" items={merge_items(@merge_candidate)} />
         <.simple_list title="Rollback Plan" items={rollback_items(@merge_candidate)} />
       </section>
+
+      <div class="panel p-5">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">
+          Review Comment
+        </h2>
+        <p :if={@comment_error} class="mt-3 text-sm font-medium text-danger">{@comment_error}</p>
+        <.form
+          for={%{}}
+          as={:comment}
+          id="pr-comment-form"
+          phx-submit="create_pr_comment"
+          class="mt-4 space-y-3"
+        >
+          <textarea
+            name="comment[body]"
+            rows="4"
+            placeholder="Record review context before merge queue decisions."
+            class="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg"
+          >{ @comment_form["body"] }</textarea>
+          <label class="flex items-center gap-2 text-sm text-muted-fg">
+            <input
+              type="checkbox"
+              name="comment[publish_to_github]"
+              value="true"
+              checked={@comment_form["publish_to_github"] == "true"}
+              class="rounded border-border bg-bg"
+            /> Publish to GitHub when connector is configured
+          </label>
+          <button type="submit" class="rounded-md bg-fg px-4 py-2 text-sm font-semibold text-bg">
+            Add Comment
+          </button>
+        </.form>
+      </div>
 
       <div class="panel p-5">
         <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">Raw Code Diff</h2>
