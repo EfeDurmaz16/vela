@@ -37,3 +37,5 @@ config :phoenix,
 config :vela, Oban, testing: :manual
 
 config :vela, :api, demo_mode?: true
+
+config :vela, :disable_parallel_preloads, true
