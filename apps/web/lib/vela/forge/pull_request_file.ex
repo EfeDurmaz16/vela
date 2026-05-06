@@ -7,6 +7,7 @@ defmodule Vela.Forge.PullRequestFile do
     field :path, :string
     field :previous_path, :string
     field :status, :string
+    field :blob_sha, :string
     field :additions, :integer, default: 0
     field :deletions, :integer, default: 0
     field :changes, :integer, default: 0
@@ -28,6 +29,7 @@ defmodule Vela.Forge.PullRequestFile do
       :path,
       :previous_path,
       :status,
+      :blob_sha,
       :additions,
       :deletions,
       :changes,

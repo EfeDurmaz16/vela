@@ -206,28 +206,11 @@ defmodule Vela.Git.GitHubClient do
       protected: Map.get(branch, "protected", false)
     }
 
-  defp normalize_pull_request_file(file),
-    do: %{
-      path: file["filename"],
-      previous_path: file["previous_filename"],
-      status: normalize_file_status(file["status"]),
-      additions: file["additions"] || 0,
-      deletions: file["deletions"] || 0,
-      changes: file["changes"] || 0,
-      patch: file["patch"],
-      blob_url: file["blob_url"],
-      raw_url: file["raw_url"]
-    }
+  defp normalize_pull_request_file(file), do: Vela.Git.DiffModel.github_file_attrs(file)
 
   defp normalize_pull_request_status(%{"draft" => true}), do: "draft"
   defp normalize_pull_request_status(%{"state" => "closed", "merged" => true}), do: "merged"
   defp normalize_pull_request_status(%{"state" => "closed"}), do: "closed"
   defp normalize_pull_request_status(%{"state" => "open"}), do: "ready_for_review"
   defp normalize_pull_request_status(_), do: "open"
-
-  defp normalize_file_status(status)
-       when status in ~w(added removed modified renamed copied changed unchanged),
-       do: status
-
-  defp normalize_file_status(_status), do: "changed"
 end

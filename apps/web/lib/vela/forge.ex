@@ -77,6 +77,7 @@ defmodule Vela.Forge do
         set: [
           previous_path: attrs.previous_path,
           status: attrs.status,
+          blob_sha: attrs.blob_sha,
           additions: attrs.additions,
           deletions: attrs.deletions,
           changes: attrs.changes,
