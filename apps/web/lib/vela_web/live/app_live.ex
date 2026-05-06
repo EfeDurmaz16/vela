@@ -1,7 +1,7 @@
 defmodule VelaWeb.AppLive do
   use VelaWeb, :live_view
 
-  alias Vela.{Agents, Evidence, Forge, Integrations}
+  alias Vela.{Accounts, Actors, Agents, Evidence, Forge, Integrations, Jobs, Repo}
   import VelaWeb.AppShellComponents
   import VelaWeb.EvidencePageComponents
   import VelaWeb.PullRequestPageComponents
@@ -30,8 +30,36 @@ defmodule VelaWeb.AppLive do
       agents: Agents.list_agent_profiles(),
       sessions: Agents.list_recent_sessions(),
       evidence_events: Evidence.list_recent_events(20),
-      integration_status: Integrations.phase_zero_status()
+      integration_status: Integrations.phase_zero_status(),
+      import_form: %{"owner" => "", "repo" => ""}
     )
+  end
+
+  @impl true
+  def handle_event("import_repository", %{"import" => params}, socket) do
+    case queue_repository_import(params) do
+      {:ok, repository, _job} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Repository import queued for #{repository.full_name}.")
+         |> push_navigate(to: ~p"/repos/#{repository.organization.slug}/#{repository.slug}")}
+
+      {:error, :missing_fields} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Owner and repository are required.")
+         |> assign(:import_form, params)}
+
+      {:error, :missing_workspace} ->
+        {:noreply, put_flash(socket, :error, "No organization and actor are available.")}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Repository import could not be queued.")
+         |> assign(:import_form, params)
+         |> assign(:import_errors, changeset)}
+    end
   end
 
   defp assign_page(%{assigns: %{live_action: :repo}} = socket, %{"org" => org, "repo" => repo}) do
@@ -147,7 +175,7 @@ defmodule VelaWeb.AppLive do
 
   defp page(%{live_action: :repos} = assigns) do
     ~H"""
-    <.repositories_page repositories={@repositories} />
+    <.repositories_page repositories={@repositories} import_form={@import_form} />
     """
   end
 
@@ -310,4 +338,94 @@ defmodule VelaWeb.AppLive do
 
   defp pull_href(pr),
     do: "/repos/#{pr.repository.organization.slug}/#{pr.repository.slug}/pulls/#{pr.id}"
+
+  defp queue_repository_import(params) do
+    owner = params |> Map.get("owner", "") |> String.trim()
+    repo_name = params |> Map.get("repo", "") |> String.trim()
+
+    with :ok <- require_import_fields(owner, repo_name),
+         {:ok, organization, actor} <- import_workspace(),
+         {:ok, repository, job} <- upsert_import_repository(organization, actor, owner, repo_name) do
+      {:ok, Repo.preload(repository, :organization), job}
+    end
+  end
+
+  defp require_import_fields("", _repo_name), do: {:error, :missing_fields}
+  defp require_import_fields(_owner, ""), do: {:error, :missing_fields}
+  defp require_import_fields(_owner, _repo_name), do: :ok
+
+  defp import_workspace do
+    with %{} = organization <- Accounts.list_organizations() |> List.first(),
+         %{} = actor <- organization.id |> Actors.list_actors() |> List.first() do
+      {:ok, organization, actor}
+    else
+      _ -> {:error, :missing_workspace}
+    end
+  end
+
+  defp upsert_import_repository(organization, actor, owner, repo_name) do
+    Repo.transaction(fn ->
+      with {:ok, repository} <- upsert_import_placeholder(organization, owner, repo_name),
+           {:ok, job} <- enqueue_import_job(repository, owner, repo_name),
+           {:ok, _event} <- append_import_event(repository, actor, job) do
+        {repository, job}
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, {repository, job}} -> {:ok, repository, job}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp upsert_import_placeholder(organization, owner, repo_name) do
+    slug = repo_name |> String.downcase()
+
+    attrs = %{
+      organization_id: organization.id,
+      name: repo_name,
+      slug: slug,
+      visibility: "private",
+      default_branch: "main",
+      description: "GitHub import pending for #{owner}/#{repo_name}.",
+      provider: "github",
+      full_name: "#{owner}/#{repo_name}",
+      import_status: "pending",
+      last_import_error: nil,
+      health_status: "unknown",
+      risk_level: "medium"
+    }
+
+    case Forge.get_repository_by_slug_for_org(organization.id, slug) do
+      nil -> Forge.create_repository(attrs)
+      repository -> Forge.update_repository(repository, attrs)
+    end
+  end
+
+  defp enqueue_import_job(repository, owner, repo_name) do
+    Jobs.enqueue(:repo_import, %{
+      organization_id: repository.organization_id,
+      repository_id: repository.id,
+      provider: "github",
+      owner: owner,
+      repo: repo_name
+    })
+  end
+
+  defp append_import_event(repository, actor, job) do
+    Evidence.append_event(%{
+      organization_id: repository.organization_id,
+      repository_id: repository.id,
+      actor_id: actor.id,
+      event_type: "repo.import_queued",
+      resource_type: "repository",
+      resource_id: repository.id,
+      payload: %{
+        job_id: job.id,
+        job_queue: job.queue,
+        owner: repository.full_name
+      }
+    })
+  end
 end

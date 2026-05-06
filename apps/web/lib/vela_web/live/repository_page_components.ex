@@ -8,6 +8,7 @@ defmodule VelaWeb.RepositoryPageComponents do
   alias Vela.{Evidence, Forge}
 
   attr :repositories, :list, required: true
+  attr :import_form, :map, default: %{"owner" => "", "repo" => ""}
 
   def repositories_page(assigns) do
     ~H"""
@@ -16,6 +17,47 @@ defmodule VelaWeb.RepositoryPageComponents do
         title="Repositories"
         kicker="Which repositories are healthy, risky, or waiting on action?"
       />
+      <div class="panel p-5">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">
+          Import GitHub Repository
+        </h2>
+        <.form
+          for={%{}}
+          as={:import}
+          phx-submit="import_repository"
+          class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+        >
+          <input type="hidden" name="import[provider]" value="github" />
+          <div>
+            <label class="text-xs font-medium uppercase tracking-[0.12em] text-muted-fg">
+              Owner
+            </label>
+            <input
+              name="import[owner]"
+              value={@import_form["owner"]}
+              placeholder="sardis-labs"
+              class="mt-2 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg"
+            />
+          </div>
+          <div>
+            <label class="text-xs font-medium uppercase tracking-[0.12em] text-muted-fg">
+              Repository
+            </label>
+            <input
+              name="import[repo]"
+              value={@import_form["repo"]}
+              placeholder="vela"
+              class="mt-2 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg"
+            />
+          </div>
+          <button
+            type="submit"
+            class="self-end rounded-md bg-fg px-4 py-2 text-sm font-semibold text-bg"
+          >
+            Queue Import
+          </button>
+        </.form>
+      </div>
       <div class="panel overflow-hidden">
         <table class="w-full text-left text-sm">
           <thead class="border-b border-border text-xs uppercase tracking-[0.12em] text-muted-fg">
