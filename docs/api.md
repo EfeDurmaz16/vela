@@ -64,3 +64,18 @@ WorkOS AuthKit is handled server-side: the login route returns a WorkOS authoriz
 The read-only collection endpoints intentionally remain public in phase 0 so existing demos, smoke checks, and API surface tests do not need a browser-authenticated session. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after a non-blocking approved review and latest repository readiness verdict of `ship`, then writes `merge.queued` evidence/outbox.
 
 The OpenAPI draft lives at `docs/openapi-v1.yaml`. Internal sidecar contracts remain under `services/*/README.md` until Rust/Python sidecars are implemented.
+
+## Internal API Modules
+
+The v1 API keeps route ownership in `VelaWeb.Api.V1.FoundationController`, but the controller is intentionally thin. Endpoint actions delegate shared behavior to focused modules:
+
+- `VelaWeb.Api.V1.Response` owns pagination, schema serialization, validation errors and common error envelopes.
+- `VelaWeb.Api.V1.IdempotentMutation` wraps mutating endpoints that support `Idempotency-Key`.
+- `VelaWeb.Api.V1.MutationAudit` writes evidence and outbox rows for accepted mutations.
+- `VelaWeb.Api.V1.RepoActions` owns repository import and PR sync orchestration.
+- `VelaWeb.Api.V1.PullRequestActions` owns PR comments and reviewed merge queueing.
+- `VelaWeb.Api.V1.MergeActions` owns merge candidate simulation job orchestration.
+- `VelaWeb.Api.V1.WebhookActions` owns provider webhook verification, tenant context validation and ingestion.
+- `VelaWeb.Api.V1.ReadModels` owns read-side collection queries that do not belong in the controller.
+
+This split keeps HTTP routing, response shape, idempotency, mutation audit, provider orchestration and read models independently testable while preserving the public route contract.
