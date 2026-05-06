@@ -237,11 +237,39 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 
 - [x] Inspect repo, stack, git status, tests, docs, and module size.
 - [x] Run `mix test` from `apps/web`; expected and observed: 94 tests, 0 failures.
-- [ ] Commit this transformation plan.
-- [ ] Implement Commit 11: extract API response serialization helpers.
-- [ ] Run focused API tests.
-- [ ] Run `mix test`.
-- [ ] Commit the API response extraction.
+- [x] Commit this transformation plan.
+- [x] Implement Commit 11: extract API response serialization helpers.
+- [x] Implement Commit 12: add direct response helper tests.
+- [x] Implement Commit 13: extract idempotent mutation helper.
+- [x] Implement Commit 14: add direct idempotent mutation response tests.
+- [x] Implement Commit 15: extract mutation audit writer.
+- [x] Implement Commit 16: add direct mutation audit write tests.
+- [x] Implement Commit 17: extract repository import actions.
+- [x] Implement Commit 18: add direct repository import action tests.
+- [x] Implement Commit 19: extract pull request comment action.
+- [x] Implement Commit 20: add direct pull request comment action tests.
+- [x] Run focused API tests after each extraction.
+- [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
+
+## Current Execution Status
+
+Completed commits from this plan:
+
+- 2. `docs: add 150-commit transformation plan`
+- 11. `refactor(api): extract response serialization helpers`
+- 12. `test(api): cover response helper serialization`
+- 13. `refactor(api): extract idempotent mutation helper`
+- 14. `test(api): cover idempotent mutation response paths`
+- 15. `refactor(api): extract mutation audit writer`
+- 16. `test(api): cover mutation audit atomic writes`
+- 17. `refactor(api): extract repo import action module`
+- 18. `test(api): cover repo import action directly`
+- 19. `refactor(api): extract PR comment action module`
+- 20. `test(api): cover PR comment action directly`
+
+Next recommended commit:
+
+- 21. `refactor(api): extract PR merge queue action module`
 
 ## Success Criteria
 
