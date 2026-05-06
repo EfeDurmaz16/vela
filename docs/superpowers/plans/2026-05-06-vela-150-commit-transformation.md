@@ -385,10 +385,15 @@ Completed commits from this plan:
 - 98. `docs(merge): update merge queue invariants`
 - 99. `docs(api): document merge cancel and gate errors`
 - 100. `chore(seeds): seed stale and blocked queue examples`
+- corrective. `fix(ui): tolerate pull requests without readiness scores`
+- 101. `feat(readiness): persist evidence inputs`
+- 102. `test(readiness): cover score input lineage`
+- 103. `feat(readiness): explain score dimensions`
+- 104. `test(readiness): cover explanation validation`
 
 Next recommended commit:
 
-- 101. `feat(readiness): persist evidence inputs`
+- 105. `feat(maestro): add analysis callback endpoint`
 
 ## Success Criteria
 
