@@ -401,10 +401,14 @@ Completed commits from this plan:
 - corrective. `refactor(api): keep analysis callback controller thin`
 - 113. `refactor(ui): extract app shell components`
 - 114. `test(live): preserve navigation render`
+- 115. `refactor(ui): extract repository page module`
+- 116. `test(live): cover repository page states`
+- 117. `refactor(ui): extract pull request cockpit module`
+- 118. `test(live): cover PR cockpit risk states`
 
 Next recommended commit:
 
-- 115. `refactor(ui): extract repository page module`
+- 119. `refactor(ui): extract evidence page module`
 
 ## Success Criteria
 
