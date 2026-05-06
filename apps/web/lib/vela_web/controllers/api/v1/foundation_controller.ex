@@ -3,7 +3,6 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, RBAC, Repo}
   alias Vela.Merge.MergeCandidate
-  alias Vela.Maestro.AnalysisRun
   alias VelaWeb.Api.V1.AnalysisActions
   alias VelaWeb.Api.V1.EvidenceActions
   alias VelaWeb.Api.V1.MergeActions
@@ -231,12 +230,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   def simulate_merge(conn, params), do: MergeActions.simulate(conn, params)
 
-  def analysis_callback(conn, %{"id" => id} = params) do
-    case Repo.get(AnalysisRun, id) do
-      nil -> Response.analysis_run_not_found(conn)
-      analysis_run -> AnalysisActions.callback(conn, analysis_run, params)
-    end
-  end
+  def analysis_callback(conn, params), do: AnalysisActions.callback(conn, params)
 
   def webhook(conn, params), do: WebhookActions.ingest(conn, params)
 

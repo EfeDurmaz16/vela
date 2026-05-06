@@ -6,13 +6,21 @@ defmodule VelaWeb.Api.V1.AnalysisActions do
   import Phoenix.Controller
   import Plug.Conn
 
-  alias Vela.{Maestro, Webhooks}
+  alias Vela.{Maestro, Repo, Webhooks}
+  alias Vela.Maestro.AnalysisRun
   alias VelaWeb.Api.V1.Response
 
   @provider "analysis"
   @terminal_statuses ~w(completed failed cancelled)
 
-  def callback(conn, analysis_run, params) do
+  def callback(conn, %{"id" => id} = params) do
+    case Repo.get(AnalysisRun, id) do
+      nil -> Response.analysis_run_not_found(conn)
+      analysis_run -> apply_callback(conn, analysis_run, params)
+    end
+  end
+
+  defp apply_callback(conn, analysis_run, params) do
     with :ok <- Webhooks.verify_provider_request(@provider, conn),
          {:ok, attrs} <- callback_attrs(params),
          {:ok, analysis_run} <- Maestro.update_analysis_run(analysis_run, attrs) do
