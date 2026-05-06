@@ -33,7 +33,7 @@ defmodule Vela.StateMachine do
       "queued" => ~w(merging blocked cancelled),
       "simulating" => ~w(testing blocked failed),
       "testing" => ~w(ready blocked failed),
-      "ready" => ~w(merging blocked),
+      "ready" => ~w(queued merging blocked),
       "blocked" => ~w(simulating),
       "merging" => ~w(merged failed),
       "merged" => [],
