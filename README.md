@@ -2,20 +2,20 @@
 
 [![CI](https://github.com/EfeDurmaz16/vela/actions/workflows/ci.yml/badge.svg)](https://github.com/EfeDurmaz16/vela/actions/workflows/ci.yml)
 
-Trusted forge control plane for human and agent-generated software changes.
+Trust infrastructure for Git workflows with human and AI-generated code.
 
-Vela sits next to Git hosting and makes code-change trust explicit before a
-change is merged, shipped, or delegated to an agent. It models repositories,
-pull requests, actors, agent sessions, readiness signals, merge candidates,
-policy decisions, and append-only evidence in one Phoenix/Postgres control
-plane.
+Vela is a Git-compatible forge control plane for deciding whether a code change
+can be trusted. It models repositories, pull requests, human and agent actors,
+readiness signals, merge candidates, policy decisions, and append-only evidence
+before a change is merged, shipped, or delegated to an agent.
 
-GitHub stores code. Vela records why a change was trusted, blocked, queued, or
+Git stores history. Vela records why a change was trusted, blocked, queued, or
 cancelled.
 
 ## What Vela Does
 
-- Imports GitHub repository and pull request metadata into a local forge model.
+- Imports Git provider repository and pull request metadata into a local forge
+  model. Phase 0 ships the GitHub adapter first.
 - Tracks human and agent actors separately so authority is visible in workflow
   state.
 - Computes readiness inputs from deterministic analyzers, synced PR metadata,
