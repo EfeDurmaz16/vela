@@ -46,6 +46,90 @@ defmodule Vela.Merge.GatesTest do
     assert :ok = Gates.readiness_gate(repo.id)
   end
 
+  test "branch_protection_gate enforces required approvals and checks" do
+    %{pull_request: pull_request, repo: repo, reviewer: reviewer} =
+      pr_fixture!("branch-protection")
+
+    {:ok, _branch} =
+      Forge.create_branch(%{
+        repository_id: repo.id,
+        name: "main",
+        current_sha: pull_request.base_sha,
+        protected: true,
+        required_approvals: 2,
+        required_checks: ["unit tests", "security"]
+      })
+
+    assert {:error, :branch_protection_missing_approvals} =
+             Gates.branch_protection_gate(pull_request)
+
+    {:ok, second_reviewer} =
+      Actors.create_actor(%{
+        organization_id: repo.organization_id,
+        type: "human",
+        display_name: "Second Reviewer",
+        trust_level: "trusted"
+      })
+
+    {:ok, _review} =
+      Forge.create_review(%{
+        pull_request_id: pull_request.id,
+        actor_id: reviewer.id,
+        status: "approve",
+        summary: "Ship it"
+      })
+
+    {:ok, _review} =
+      Forge.create_review(%{
+        pull_request_id: pull_request.id,
+        actor_id: second_reviewer.id,
+        status: "approve",
+        summary: "Ship it too"
+      })
+
+    assert {:error, :branch_protection_missing_checks} =
+             Gates.branch_protection_gate(pull_request)
+
+    {:ok, _check} =
+      Forge.upsert_check_run(repo.id, pull_request.id, %{
+        provider: "github",
+        external_id: "check-unit",
+        name: "unit tests",
+        status: "completed",
+        conclusion: "success"
+      })
+
+    assert {:error, :branch_protection_missing_checks} =
+             Gates.branch_protection_gate(pull_request)
+
+    {:ok, _check} =
+      Forge.upsert_check_run(repo.id, pull_request.id, %{
+        provider: "github",
+        external_id: "check-security",
+        name: "security",
+        status: "completed",
+        conclusion: "success"
+      })
+
+    assert :ok = Gates.branch_protection_gate(pull_request)
+  end
+
+  test "branch_protection_gate allows unprotected target branches" do
+    %{pull_request: pull_request, repo: repo} = pr_fixture!("unprotected-branch")
+
+    {:ok, _branch} =
+      Forge.create_branch(%{
+        repository_id: repo.id,
+        name: "main",
+        current_sha: pull_request.base_sha,
+        protected: false,
+        required_approvals: 2,
+        required_checks: ["unit tests"]
+      })
+
+    assert :ok = Gates.branch_protection_gate(pull_request)
+  end
+
   defp pr_fixture!(suffix) do
     {:ok, org} =
       Accounts.create_organization(%{
