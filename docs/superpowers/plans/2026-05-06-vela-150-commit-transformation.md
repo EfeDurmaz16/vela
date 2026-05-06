@@ -398,10 +398,13 @@ Completed commits from this plan:
 - 110. `test(jobs): cover score recalculation worker`
 - 111. `docs(maestro): separate deterministic and external analysis`
 - 112. `docs(openapi): document analysis callback`
+- corrective. `refactor(api): keep analysis callback controller thin`
+- 113. `refactor(ui): extract app shell components`
+- 114. `test(live): preserve navigation render`
 
 Next recommended commit:
 
-- 113. `refactor(ui): extract app shell components`
+- 115. `refactor(ui): extract repository page module`
 
 ## Success Criteria
 
