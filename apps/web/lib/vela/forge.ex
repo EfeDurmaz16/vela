@@ -14,7 +14,7 @@ defmodule Vela.Forge do
     Repositories,
     Repository,
     RepositoryTrustSignal,
-    Review
+    Reviews
   }
 
   alias Vela.Repo
@@ -49,7 +49,7 @@ defmodule Vela.Forge do
     PullRequests.get_for_org(organization_id, id)
   end
 
-  def create_review(attrs), do: %Review{} |> Review.changeset(attrs) |> Repo.insert()
+  def create_review(attrs), do: Reviews.create(attrs)
   def create_issue(attrs), do: %Issue{} |> Issue.changeset(attrs) |> Repo.insert()
 
   def create_repository_trust_signal(attrs),
