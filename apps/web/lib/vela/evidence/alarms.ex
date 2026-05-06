@@ -16,21 +16,31 @@ defmodule Vela.Evidence.Alarms do
       status: "open"
     }
 
-    case %TamperAlarm{} |> TamperAlarm.changeset(attrs) |> Repo.insert() do
-      {:ok, alarm} ->
+    case existing_alarm(organization_id, attrs.event_hash, attrs.reason) do
+      %TamperAlarm{} = alarm ->
         alarm
 
-      {:error, changeset} ->
-        if unique_violation?(changeset) do
-          Repo.get_by!(TamperAlarm,
-            organization_id: organization_id,
-            event_hash: attrs.event_hash,
-            reason: attrs.reason
-          )
-        else
-          raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
+      nil ->
+        case %TamperAlarm{} |> TamperAlarm.changeset(attrs) |> Repo.insert() do
+          {:ok, alarm} ->
+            alarm
+
+          {:error, changeset} ->
+            if unique_violation?(changeset) do
+              existing_alarm(organization_id, attrs.event_hash, attrs.reason)
+            else
+              raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
+            end
         end
     end
+  end
+
+  defp existing_alarm(organization_id, event_hash, reason) do
+    Repo.get_by(TamperAlarm,
+      organization_id: organization_id,
+      event_hash: event_hash,
+      reason: reason
+    )
   end
 
   defp unique_violation?(changeset) do

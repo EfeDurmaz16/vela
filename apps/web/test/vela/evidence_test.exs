@@ -2,6 +2,7 @@ defmodule Vela.EvidenceTest do
   use Vela.DataCase
 
   alias Vela.{Accounts, Actors, Evidence, Repo}
+  alias Vela.Evidence.TamperAlarm
 
   test "appends a hash-chained evidence stream" do
     {:ok, org} = Accounts.create_organization(%{name: "Test Org", slug: "test-org", plan: "free"})
@@ -224,6 +225,40 @@ defmodule Vela.EvidenceTest do
              })
 
     assert event.actor_id == actor.id
+  end
+
+  test "failed verification records one tamper alarm without duplicate alarm spam" do
+    %{actor: actor, org: org} = evidence_fixture!("tamper-alarm")
+
+    {:ok, event} =
+      Evidence.append_event(%{
+        organization_id: org.id,
+        actor_id: actor.id,
+        event_type: "policy.evaluated",
+        resource_type: "policy",
+        payload: %{verdict: "allow"}
+      })
+
+    event
+    |> Ecto.Changeset.change(payload: %{"verdict" => "block"})
+    |> Repo.update!()
+
+    assert {:error, %{reason: :payload_hash_mismatch}} = Evidence.verify_chain(org.id)
+    assert {:error, %{reason: :payload_hash_mismatch}} = Evidence.verify_chain(org.id)
+
+    assert [
+             %TamperAlarm{
+               organization_id: organization_id,
+               evidence_event_id: evidence_event_id,
+               event_hash: event_hash,
+               reason: "payload_hash_mismatch",
+               status: "open"
+             }
+           ] = Repo.all(TamperAlarm)
+
+    assert organization_id == org.id
+    assert evidence_event_id == event.id
+    assert event_hash == event.event_hash
   end
 
   defp evidence_fixture!(suffix) do
