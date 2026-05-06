@@ -418,10 +418,12 @@ Completed commits from this plan:
 - 127. `feat(ui): add diff file list surface`
 - corrective. `fix(forge): tolerate sparse pull request file attrs`
 - 128. `test(live): cover changed file rendering`
+- 129. `feat(ui): add evidence verifier status`
+- 130. `test(live): cover evidence verifier status`
 
 Next recommended commit:
 
-- 129. `feat(ui): add evidence verifier status`
+- 131. `feat(protocol): define event envelope versioning`
 
 ## Success Criteria
 
