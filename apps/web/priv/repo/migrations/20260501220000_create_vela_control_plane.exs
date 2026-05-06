@@ -317,7 +317,7 @@ defmodule Vela.Repo.Migrations.CreateVelaControlPlane do
       add :event_hash, :string, null: false
       add :signature, :text
 
-      timestamps(type: :utc_datetime, updated_at: false)
+      timestamps(type: :utc_datetime_usec, updated_at: false)
     end
 
     create index(:evidence_events, [:organization_id, :inserted_at])

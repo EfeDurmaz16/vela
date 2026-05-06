@@ -18,7 +18,7 @@ defmodule Vela.Evidence do
   end
 
   defp append_valid_event(attrs) do
-    now = %{DateTime.utc_now(:microsecond) | microsecond: {0, 6}}
+    now = DateTime.utc_now(:microsecond)
     payload = Map.get(attrs, :payload, %{})
     payload_hash = hash(payload)
     prev_event_hash = latest_event_hash(attrs.organization_id, Map.get(attrs, :repository_id))
@@ -171,7 +171,7 @@ defmodule Vela.Evidence do
 
   defp latest_event_hash_query do
     EvidenceEvent
-    |> order_by([e], desc: e.inserted_at)
+    |> order_by([e], desc: e.inserted_at, desc: e.id)
     |> limit(1)
     |> select([e], e.event_hash)
   end

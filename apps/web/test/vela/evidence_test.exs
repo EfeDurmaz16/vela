@@ -156,6 +156,23 @@ defmodule Vela.EvidenceTest do
     assert last_hash == event.event_hash
   end
 
+  test "verifier accepts several events appended without sleeps" do
+    %{actor: actor, org: org} = evidence_fixture!("same-second")
+
+    for index <- 1..5 do
+      assert {:ok, _event} =
+               Evidence.append_event(%{
+                 organization_id: org.id,
+                 actor_id: actor.id,
+                 event_type: "policy.evaluated",
+                 resource_type: "policy",
+                 payload: %{index: index}
+               })
+    end
+
+    assert {:ok, %{count: 5}} = Evidence.verify_chain(org.id)
+  end
+
   test "export cursor is stable for events with the same timestamp" do
     %{actor: actor, org: org} = evidence_fixture!("export")
     inserted_at = %{DateTime.utc_now(:microsecond) | microsecond: {0, 6}}

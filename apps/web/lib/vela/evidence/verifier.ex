@@ -19,13 +19,13 @@ defmodule Vela.Evidence.Verifier do
   defp events_query(organization_id, nil) do
     EvidenceEvent
     |> where([e], e.organization_id == ^organization_id and is_nil(e.repository_id))
-    |> order_by([e], asc: e.inserted_at)
+    |> order_by([e], asc: e.inserted_at, asc: e.id)
   end
 
   defp events_query(organization_id, repository_id) do
     EvidenceEvent
     |> where([e], e.organization_id == ^organization_id and e.repository_id == ^repository_id)
-    |> order_by([e], asc: e.inserted_at)
+    |> order_by([e], asc: e.inserted_at, asc: e.id)
   end
 
   defp verify_events([], previous_hash, count),
