@@ -342,10 +342,13 @@ Completed commits from this plan:
 - 56. `test(evidence): cover critical actor requirement`
 - 57. `feat(evidence): add tamper alarm model`
 - 58. `test(evidence): cover tamper alarm creation`
+- 59. `docs(evidence): document verification and export`
+- corrective. `fix(evidence): preserve microsecond event ordering`
+- 60. `chore(seeds): seed evidence verifier demo state`
 
 Next recommended commit:
 
-- 59. `docs(evidence): document verification and export`
+- 61. `feat(auth): add explicit demo mode config`
 
 ## Success Criteria
 
