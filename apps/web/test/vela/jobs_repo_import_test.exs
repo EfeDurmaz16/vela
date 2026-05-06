@@ -26,7 +26,22 @@ defmodule Vela.JobsRepoImportTest do
              }}
 
           "/repos/vela/core/branches" ->
-            {:ok, %{status: 200, body: []}}
+            {:ok,
+             %{
+               status: 200,
+               body: [
+                 %{
+                   "name" => "trunk",
+                   "commit" => %{"sha" => "sha_trunk"},
+                   "protected" => true
+                 },
+                 %{
+                   "name" => "feature/demo",
+                   "commit" => %{"sha" => "sha_feature"},
+                   "protected" => false
+                 }
+               ]
+             }}
         end
       end
     )
@@ -74,6 +89,17 @@ defmodule Vela.JobsRepoImportTest do
     assert updated.import_status == "imported"
     assert %DateTime{} = updated.imported_at
     assert updated.last_import_error == nil
+
+    branches =
+      Vela.Forge.Branch
+      |> where([branch], branch.repository_id == ^repo.id)
+      |> order_by([branch], asc: branch.name)
+      |> Repo.all()
+
+    assert [
+             %{name: "feature/demo", current_sha: "sha_feature", protected: false},
+             %{name: "trunk", current_sha: "sha_trunk", protected: true}
+           ] = branches
   end
 
   test "repo import worker marks failed imports without losing the repository row" do
