@@ -18,6 +18,7 @@ defmodule Vela.Maestro.ReadinessScore do
     field :verdict, :string
     field :confidence, :string
     field :dimensions, :map, default: %{}
+    field :dimension_explanations, :map, default: %{}
     field :explanation, :string
     field :evidence_refs, {:array, :binary_id}, default: []
     field :input_refs, :map, default: %{}
@@ -43,6 +44,7 @@ defmodule Vela.Maestro.ReadinessScore do
       :verdict,
       :confidence,
       :dimensions,
+      :dimension_explanations,
       :explanation,
       :evidence_refs,
       :input_refs
@@ -60,6 +62,7 @@ defmodule Vela.Maestro.ReadinessScore do
     |> Vela.Validation.validate_inclusion(:verdict, @verdicts)
     |> Vela.Validation.validate_inclusion(:confidence, @confidences)
     |> validate_dimensions()
+    |> put_dimension_explanations()
   end
 
   defp validate_dimensions(changeset) do
@@ -78,4 +81,27 @@ defmodule Vela.Maestro.ReadinessScore do
       errors
     end)
   end
+
+  defp put_dimension_explanations(changeset) do
+    case get_field(changeset, :dimension_explanations) do
+      explanations when explanations in [nil, %{}] ->
+        put_change(
+          changeset,
+          :dimension_explanations,
+          default_dimension_explanations(get_field(changeset, :dimensions) || %{})
+        )
+
+      _explanations ->
+        changeset
+    end
+  end
+
+  defp default_dimension_explanations(dimensions) do
+    Map.new(@dimension_keys, fn key ->
+      score = Map.get(dimensions, key)
+      {key, "#{humanize_dimension(key)} contributed #{score}/100 to the readiness verdict."}
+    end)
+  end
+
+  defp humanize_dimension(key), do: key |> String.replace("_", " ") |> String.capitalize()
 end
