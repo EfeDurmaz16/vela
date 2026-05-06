@@ -241,6 +241,59 @@ defmodule VelaWeb.AppLiveTest do
     assert stale_html =~ "Base branch moved; refresh the pull request."
   end
 
+  test "PR cockpit renders changed files, renames, deletions and security markers", %{conn: conn} do
+    pr =
+      Forge.active_pull_requests(10)
+      |> Enum.find(&(&1.title == "Refactor auth token validation"))
+
+    {:ok, _modified} =
+      Forge.upsert_pull_request_file(pr.id, %{
+        path: "apps/web/lib/vela/auth/token.ex",
+        previous_path: nil,
+        status: "modified",
+        blob_sha: "abc123def4567890",
+        additions: 18,
+        deletions: 4,
+        changes: 22
+      })
+
+    {:ok, _renamed} =
+      Forge.upsert_pull_request_file(pr.id, %{
+        path: "apps/web/lib/vela/auth/new_token.ex",
+        previous_path: "apps/web/lib/vela/auth/old_token.ex",
+        status: "renamed",
+        blob_sha: "def456abc1237890",
+        additions: 4,
+        deletions: 1,
+        changes: 5
+      })
+
+    {:ok, _removed} =
+      Forge.upsert_pull_request_file(pr.id, %{
+        path: "apps/web/lib/vela/auth/legacy_secret.ex",
+        previous_path: nil,
+        status: "removed",
+        blob_sha: nil,
+        additions: 0,
+        deletions: 8,
+        changes: 8
+      })
+
+    {:ok, _view, html} =
+      live(conn, "/repos/#{pr.repository.organization.slug}/#{pr.repository.slug}/pulls/#{pr.id}")
+
+    assert html =~ "Changed Files"
+    assert html =~ "apps/web/lib/vela/auth/token.ex"
+    assert html =~ "apps/web/lib/vela/auth/new_token.ex"
+    assert html =~ "renamed from apps/web/lib/vela/auth/old_token.ex"
+    assert html =~ "apps/web/lib/vela/auth/legacy_secret.ex"
+    assert html =~ "removed"
+    assert html =~ "+18"
+    assert html =~ "-8"
+    assert html =~ "blob abc123def456"
+    assert html =~ "security-sensitive"
+  end
+
   test "agents launches evidence and settings render", %{conn: conn} do
     [agent | _] = Agents.list_agent_profiles()
 

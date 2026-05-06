@@ -128,6 +128,9 @@ defmodule VelaWeb.PullRequestPageComponents do
               <p :if={file.blob_sha} class="mt-1 font-mono text-xs text-muted-fg">
                 blob {short_blob(file.blob_sha)}
               </p>
+              <p :if={security_sensitive?(file.path)} class="mt-1 text-xs font-medium text-danger">
+                security-sensitive
+              </p>
             </div>
             <div class="text-sm text-muted-fg md:text-right">
               <span class="text-success">+{file.additions}</span>
@@ -254,4 +257,10 @@ defmodule VelaWeb.PullRequestPageComponents do
   defp sorted_files(files), do: Enum.sort_by(files, & &1.path)
 
   defp short_blob(blob), do: blob |> to_string() |> String.slice(0, 12)
+
+  defp security_sensitive?(path) do
+    path = String.downcase(to_string(path))
+
+    Enum.any?(["auth", "secret", "token", "billing", "permission"], &String.contains?(path, &1))
+  end
 end
