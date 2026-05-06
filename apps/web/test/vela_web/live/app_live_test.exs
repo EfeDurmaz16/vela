@@ -307,6 +307,7 @@ defmodule VelaWeb.AppLiveTest do
     {:ok, _view, populated_html} = live(conn, ~p"/evidence")
 
     assert populated_html =~ "Evidence Ledger"
+    assert populated_html =~ "Chain healthy"
     assert populated_html =~ "hash"
     assert populated_html =~ "prev"
 
@@ -318,6 +319,67 @@ defmodule VelaWeb.AppLiveTest do
     assert empty_html =~ "Evidence Ledger"
     assert empty_html =~ "No evidence events yet"
     assert empty_html =~ "Append the first trusted action"
+  end
+
+  test "evidence ledger renders healthy empty and tampered verifier states", %{conn: conn} do
+    {:ok, org} =
+      Accounts.create_organization(%{
+        name: "Verifier Org",
+        slug: "verifier-org-#{System.unique_integer([:positive])}"
+      })
+
+    {:ok, actor} =
+      Vela.Actors.create_actor(%{
+        organization_id: org.id,
+        type: "system",
+        display_name: "Verifier Actor",
+        trust_level: "trusted"
+      })
+
+    {:ok, empty_repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "empty-verifier",
+        slug: "empty-verifier",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low"
+      })
+
+    {:ok, tampered_repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "tampered-verifier",
+        slug: "tampered-verifier",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low"
+      })
+
+    {:ok, event} =
+      Evidence.append_event(%{
+        organization_id: org.id,
+        repository_id: tampered_repo.id,
+        actor_id: actor.id,
+        event_type: "repo.created",
+        resource_type: "repository",
+        resource_id: tampered_repo.id,
+        payload: %{repo: "tampered-verifier"}
+      })
+
+    event
+    |> Ecto.Changeset.change(payload: %{"repo" => "changed-after-append"})
+    |> Vela.Repo.update!()
+
+    {:ok, _view, html} = live(conn, ~p"/evidence")
+
+    assert html =~ empty_repo.name
+    assert html =~ "No evidence"
+    assert html =~ tampered_repo.name
+    assert html =~ "Chain tampered"
+    assert html =~ "payload_hash_mismatch"
   end
 
   test "repository import form validates input and queues import work", %{conn: conn} do
