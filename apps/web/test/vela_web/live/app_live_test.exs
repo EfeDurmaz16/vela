@@ -1,7 +1,7 @@
 defmodule VelaWeb.AppLiveTest do
   use VelaWeb.ConnCase
 
-  alias Vela.{Agents, Forge}
+  alias Vela.{Accounts, Agents, Forge}
 
   setup do
     Code.eval_file("priv/repo/seeds.exs")
@@ -29,6 +29,36 @@ defmodule VelaWeb.AppLiveTest do
     {:ok, _view, repo_html} = live(conn, ~p"/repos/sardis-labs/sardis")
     assert repo_html =~ "Can I trust the current state"
     assert repo_html =~ "cell-us-east-1-demo"
+    assert repo_html =~ "Add agent spending policy enforcement"
+    assert repo_html =~ "ship"
+  end
+
+  test "repository overview renders empty and risky repository states", %{conn: conn} do
+    {:ok, org} =
+      Accounts.create_organization(%{
+        name: "Empty Org",
+        slug: "empty-org-#{System.unique_integer([:positive])}"
+      })
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "empty-core",
+        slug: "empty-core",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "degraded",
+        risk_level: "high",
+        repo_cell_id: nil
+      })
+
+    {:ok, _view, html} = live(conn, "/repos/#{org.slug}/#{repo.slug}")
+
+    assert html =~ "empty-core"
+    assert html =~ "degraded"
+    assert html =~ "high"
+    assert html =~ "unassigned"
+    assert html =~ "Active PRs"
   end
 
   test "PR cockpit renders score, verdict, provenance and merge placeholders", %{conn: conn} do
