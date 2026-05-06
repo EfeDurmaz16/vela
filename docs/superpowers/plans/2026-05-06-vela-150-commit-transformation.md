@@ -276,6 +276,16 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 - [x] Implement Commit 46: add evidence chain verifier.
 - [x] Implement Commit 47: add tamper detection coverage.
 - [x] Implement Commit 48: add empty and single-event chain verifier coverage.
+- [x] Implement Commit 49: add evidence verification API endpoint.
+- [x] Implement Commit 50: add evidence verification endpoint tests.
+- [x] Implement Commit 51: add evidence export cursor.
+- [x] Implement Commit 52: add export cursor stability tests.
+- [x] Implement Commit 53: add evidence event type registry.
+- [x] Implement Commit 54: add unknown critical event rejection tests.
+- [x] Implement Commit 55: require actors for critical evidence events.
+- [x] Implement Commit 56: add critical actor requirement tests.
+- [x] Implement Commit 57: add tamper alarm model.
+- [x] Implement Commit 58: add tamper alarm creation and dedupe tests.
 - [x] Run focused API tests after each extraction.
 - [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
 
@@ -322,10 +332,20 @@ Completed commits from this plan:
 - 46. `feat(evidence): add chain verifier`
 - 47. `test(evidence): detect broken hash chain`
 - 48. `test(evidence): verify empty and single-event chains`
+- 49. `feat(evidence): add verification API endpoint`
+- 50. `test(api): cover evidence verification endpoint`
+- 51. `feat(evidence): add export cursor`
+- 52. `test(evidence): cover export cursor stability`
+- 53. `feat(evidence): add event type registry`
+- 54. `test(evidence): reject unknown critical event types`
+- 55. `feat(evidence): require actor on critical events`
+- 56. `test(evidence): cover critical actor requirement`
+- 57. `feat(evidence): add tamper alarm model`
+- 58. `test(evidence): cover tamper alarm creation`
 
 Next recommended commit:
 
-- 49. `feat(evidence): add verification API endpoint`
+- 59. `docs(evidence): document verification and export`
 
 ## Success Criteria
 
