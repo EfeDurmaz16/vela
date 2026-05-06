@@ -1,13 +1,14 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs, Webhooks}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, Jobs}
   alias Vela.Repo
   alias VelaWeb.Api.V1.IdempotentMutation
   alias VelaWeb.Api.V1.MutationAudit
   alias VelaWeb.Api.V1.PullRequestActions
   alias VelaWeb.Api.V1.RepoActions
   alias VelaWeb.Api.V1.Response
+  alias VelaWeb.Api.V1.WebhookActions
 
   import Ecto.Query
 
@@ -253,52 +254,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end)
   end
 
-  def webhook(
-        conn,
-        %{"provider" => provider, "organization_id" => organization_id, "actor_id" => actor_id} =
-          params
-      ) do
-    with :ok <- Webhooks.verify_provider_request(provider, conn),
-         :ok <-
-           validate_webhook_context(organization_id, actor_id, Map.get(params, "repository_id")),
-         {:ok, event} <-
-           Integrations.record_event(%{
-             provider: provider,
-             organization_id: organization_id,
-             actor_id: actor_id,
-             repository_id: Map.get(params, "repository_id"),
-             resource_type: "integration",
-             payload:
-               Map.drop(params, ["provider", "organization_id", "actor_id", "repository_id"])
-           }) do
-      conn
-      |> put_status(:accepted)
-      |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: event.id}})
-    else
-      {:error, reason} ->
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: %{code: "webhook_verification_failed", reason: to_string(reason)}})
-
-      {:invalid_context, reason} ->
-        conn
-        |> put_status(:forbidden)
-        |> json(%{error: %{code: "webhook_context_invalid", reason: to_string(reason)}})
-    end
-  end
-
-  def webhook(conn, %{"provider" => provider}) do
-    with :ok <- Webhooks.verify_provider_request(provider, conn) do
-      conn
-      |> put_status(:accepted)
-      |> json(%{data: %{provider: provider, accepted: true, evidence_event_id: nil}})
-    else
-      {:error, reason} ->
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: %{code: "webhook_verification_failed", reason: to_string(reason)}})
-    end
-  end
+  def webhook(conn, params), do: WebhookActions.ingest(conn, params)
 
   defp fetch_repo(conn, id) do
     case Forge.get_repository_for_org(conn.assigns.current_organization.id, id) do
@@ -337,23 +293,5 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   defp job_payload(%Oban.Job{} = job) do
     %{id: job.id, status: "queued", kind: job.args["kind"], queue: job.queue}
-  end
-
-  defp validate_webhook_context(organization_id, actor_id, repository_id) do
-    with true <- resource_belongs_to?(Vela.Actors.Actor, actor_id, organization_id),
-         true <-
-           is_nil(repository_id) or
-             resource_belongs_to?(Vela.Forge.Repository, repository_id, organization_id) do
-      :ok
-    else
-      _ -> {:invalid_context, :tenant_mismatch}
-    end
-  end
-
-  defp resource_belongs_to?(schema, id, organization_id) do
-    case Repo.get(schema, id) do
-      %{organization_id: ^organization_id} -> true
-      _ -> false
-    end
   end
 end
