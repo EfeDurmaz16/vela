@@ -370,10 +370,14 @@ Completed commits from this plan:
 - 83. `feat(sync): make PR sync idempotent by provider ids`
 - 84. `test(sync): cover repeated PR sync`
 - 85. `docs(api): document GitHub sync depth`
+- 86. `feat(merge): add branch protection model checks`
+- 87. `test(merge): cover branch protection gates`
+- 88. `feat(merge): add base sha freshness gate`
+- 89. `test(merge): cover stale base denial`
 
 Next recommended commit:
 
-- 86. `feat(merge): add branch protection model checks`
+- 90. `feat(merge): add tree equivalence state model`
 
 ## Success Criteria
 
