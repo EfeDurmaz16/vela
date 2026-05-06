@@ -3,6 +3,7 @@ defmodule VelaWeb.AppLive do
 
   alias Vela.{Agents, Evidence, Forge, Integrations}
   import VelaWeb.AppShellComponents
+  import VelaWeb.EvidencePageComponents
   import VelaWeb.PullRequestPageComponents
   import VelaWeb.RepositoryPageComponents
 
@@ -263,20 +264,7 @@ defmodule VelaWeb.AppLive do
 
   defp page(%{live_action: :evidence} = assigns) do
     ~H"""
-    <div class="space-y-6">
-      <.section_header title="Evidence Ledger" kicker="Can we reconstruct what happened?" />
-      <div class="panel p-5">
-        <div class="mb-4 flex flex-wrap gap-2 text-xs text-muted-fg">
-          <span class="rounded-md border border-border px-2 py-1">actor</span>
-          <span class="rounded-md border border-border px-2 py-1">repo</span>
-          <span class="rounded-md border border-border px-2 py-1">event type</span>
-          <span class="rounded-md border border-border px-2 py-1">hash chain</span>
-        </div>
-        <div class="divide-y divide-border">
-          <.evidence_item :for={event <- @evidence_events} event={event} />
-        </div>
-      </div>
-    </div>
+    <.evidence_page evidence_events={@evidence_events} />
     """
   end
 
