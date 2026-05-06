@@ -63,6 +63,16 @@ defmodule Vela.Git.GitHubClient do
     end
   end
 
+  def list_pull_request_reviews(attrs) do
+    with {:ok, reviews} <-
+           get_json(
+             attrs,
+             "/repos/#{owner(attrs)}/#{repo(attrs)}/pulls/#{Map.fetch!(attrs, :number)}/reviews?per_page=100"
+           ) do
+      {:ok, Enum.map(reviews, &normalize_pull_request_review/1)}
+    end
+  end
+
   def create_issue_comment(attrs) do
     path = "/repos/#{owner(attrs)}/#{repo(attrs)}/issues/#{Map.fetch!(attrs, :number)}/comments"
 
@@ -208,9 +218,32 @@ defmodule Vela.Git.GitHubClient do
 
   defp normalize_pull_request_file(file), do: Vela.Git.DiffModel.github_file_attrs(file)
 
+  defp normalize_pull_request_review(review),
+    do: %{
+      external_id: review["id"],
+      external_author_login: get_in(review, ["user", "login"]),
+      status: normalize_review_state(review["state"]),
+      summary: review["body"],
+      submitted_at: parse_datetime(review["submitted_at"])
+    }
+
   defp normalize_pull_request_status(%{"draft" => true}), do: "draft"
   defp normalize_pull_request_status(%{"state" => "closed", "merged" => true}), do: "merged"
   defp normalize_pull_request_status(%{"state" => "closed"}), do: "closed"
   defp normalize_pull_request_status(%{"state" => "open"}), do: "ready_for_review"
   defp normalize_pull_request_status(_), do: "open"
+
+  defp normalize_review_state("APPROVED"), do: "approve"
+  defp normalize_review_state("CHANGES_REQUESTED"), do: "request_changes"
+  defp normalize_review_state("COMMENTED"), do: "comment"
+  defp normalize_review_state(_state), do: "comment"
+
+  defp parse_datetime(nil), do: nil
+
+  defp parse_datetime(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> DateTime.truncate(datetime, :second)
+      _ -> nil
+    end
+  end
 end

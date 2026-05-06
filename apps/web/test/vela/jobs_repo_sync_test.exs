@@ -61,6 +61,9 @@ defmodule Vela.JobsRepoSyncTest do
                  }
                ]
              }}
+
+          "/repos/vela/core/pulls/17/reviews" ->
+            {:ok, %{status: 200, body: []}}
         end
       end
     )

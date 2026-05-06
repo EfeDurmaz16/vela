@@ -100,6 +100,10 @@ defmodule Vela.Forge do
   end
 
   def create_review(attrs), do: Reviews.create(attrs)
+
+  def upsert_review_by_provider(pull_request_id, provider, external_id, attrs),
+    do: Reviews.upsert_by_provider(pull_request_id, provider, external_id, attrs)
+
   def create_issue(attrs), do: %Issue{} |> Issue.changeset(attrs) |> Repo.insert()
 
   def create_repository_trust_signal(attrs), do: TrustSignals.create(attrs)

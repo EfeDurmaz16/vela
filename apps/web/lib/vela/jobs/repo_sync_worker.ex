@@ -30,6 +30,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
 
     with {:ok, imported} <- Vela.Git.GitHubClient.fetch_pull_request(attrs),
          {:ok, changed_files} <- Vela.Git.GitHubClient.list_pull_request_files(attrs),
+         {:ok, reviews} <- Vela.Git.GitHubClient.list_pull_request_reviews(attrs),
          {:ok, pr} <-
            Vela.Forge.upsert_pull_request_by_provider(
              repository.id,
@@ -51,6 +52,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
              }
            ),
          :ok <- import_pull_request_files(pr.id, changed_files),
+         :ok <- import_pull_request_reviews(pr.id, reviews, Map.get(args, "actor_id")),
          {:ok, _candidate} <-
            Vela.Merge.upsert_merge_candidate_by_pull_request(pr.id, %{
              repository_id: repository.id,
@@ -71,6 +73,22 @@ defmodule Vela.Jobs.RepoSyncWorker do
     Enum.reduce_while(files, :ok, fn file, :ok ->
       case Vela.Forge.upsert_pull_request_file(pull_request_id, file) do
         {:ok, _file} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
+
+  defp import_pull_request_reviews(_pull_request_id, _reviews, nil), do: :ok
+
+  defp import_pull_request_reviews(pull_request_id, reviews, actor_id) do
+    Enum.reduce_while(reviews, :ok, fn review, :ok ->
+      case Vela.Forge.upsert_review_by_provider(
+             pull_request_id,
+             "github",
+             review.external_id,
+             Map.put(review, :actor_id, actor_id)
+           ) do
+        {:ok, _review} -> {:cont, :ok}
         {:error, changeset} -> {:halt, {:error, changeset}}
       end
     end)
