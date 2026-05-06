@@ -28,6 +28,66 @@ defmodule Vela.MergeTest do
     assert {"must match tested_tree_hash", _} = changeset.errors[:final_merge_tree_hash]
   end
 
+  test "classifies merge tree equivalence state" do
+    assert "unmerged" = Vela.Merge.TreeEquivalence.classify(%{})
+
+    assert "untested" =
+             Vela.Merge.TreeEquivalence.classify(%{virtual_merge_tree_hash: "tree:virtual"})
+
+    assert "tested" =
+             Vela.Merge.TreeEquivalence.classify(%{
+               virtual_merge_tree_hash: "tree:virtual",
+               tested_tree_hash: "tree:tested"
+             })
+
+    assert "equivalent" =
+             Vela.Merge.TreeEquivalence.classify(%{
+               virtual_merge_tree_hash: "tree:virtual",
+               tested_tree_hash: "tree:tested",
+               final_merge_tree_hash: "tree:tested"
+             })
+
+    assert "mismatch" =
+             Vela.Merge.TreeEquivalence.classify(%{
+               virtual_merge_tree_hash: "tree:virtual",
+               tested_tree_hash: "tree:tested",
+               final_merge_tree_hash: "tree:final"
+             })
+  end
+
+  test "stores tree_state from merge tree hashes" do
+    changeset =
+      MergeCandidate.changeset(%MergeCandidate{}, %{
+        repository_id: Ecto.UUID.generate(),
+        pull_request_id: Ecto.UUID.generate(),
+        base_sha: "base",
+        head_sha: "head",
+        status: "pending",
+        virtual_merge_tree_hash: "tree:virtual",
+        tested_tree_hash: "tree:tested"
+      })
+
+    assert changeset.valid?
+    assert Ecto.Changeset.get_field(changeset, :tree_state) == "tested"
+  end
+
+  test "blocks final tree mismatch when candidate becomes ready" do
+    %{candidate: candidate} = merge_fixture!("tree-mismatch")
+
+    assert {:error, changeset} =
+             Merge.transition(candidate, "simulating", %{
+               virtual_merge_tree_hash: "tree:virtual"
+             })
+             |> then(fn {:ok, candidate} ->
+               Merge.transition(candidate, "testing", %{tested_tree_hash: "tree:tested"})
+             end)
+             |> then(fn {:ok, candidate} ->
+               Merge.transition(candidate, "ready", %{final_merge_tree_hash: "tree:final"})
+             end)
+
+    assert {"must match tested_tree_hash", _} = changeset.errors[:final_merge_tree_hash]
+  end
+
   test "queues merge only when review and readiness gates pass" do
     %{pr: pr, candidate: candidate, reviewer: reviewer} = merge_fixture!("passing")
 
