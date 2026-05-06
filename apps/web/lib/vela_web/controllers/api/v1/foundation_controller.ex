@@ -1,7 +1,8 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, RBAC}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, RBAC, Repo}
+  alias Vela.Merge.MergeCandidate
   alias VelaWeb.Api.V1.EvidenceActions
   alias VelaWeb.Api.V1.MergeActions
   alias VelaWeb.Api.V1.PullRequestActions
@@ -188,6 +189,16 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end
   end
 
+  def cancel_merge_candidate(conn, %{"id" => id}) do
+    with {:ok, candidate} <- fetch_merge_candidate(conn, id),
+         :ok <- authorize(conn, :merge_candidate, :cancel) do
+      PullRequestActions.cancel_merge_candidate(conn, candidate)
+    else
+      {:error, :not_found} -> Response.merge_candidate_not_found(conn)
+      {:error, :forbidden} -> Response.forbidden(conn)
+    end
+  end
+
   def import_github_repo(conn, params) do
     with :ok <- authorize(conn, :repository, :create) do
       RepoActions.import_github_repo(conn, params)
@@ -251,6 +262,23 @@ defmodule VelaWeb.Api.V1.FoundationController do
     case Forge.get_pull_request_for_org(conn.assigns.current_organization.id, id) do
       nil -> {:error, :not_found}
       pull_request -> {:ok, pull_request}
+    end
+  end
+
+  defp fetch_merge_candidate(conn, id) do
+    current_organization_id = conn.assigns.current_organization.id
+
+    candidate =
+      MergeCandidate
+      |> Repo.get(id)
+      |> Repo.preload(:repository)
+
+    case candidate do
+      %MergeCandidate{repository: %{organization_id: ^current_organization_id}} ->
+        {:ok, candidate}
+
+      _ ->
+        {:error, :not_found}
     end
   end
 

@@ -6,7 +6,7 @@ defmodule Vela.Evidence.EventTypes do
   @event_types ~w(
     repo.created repo.import_queued repo.imported push.received branch.updated pr.opened pr.updated pr.synced
     pr.comment.created review.submitted agent.session.started agent.session.completed analysis.started
-    analysis.completed score.computed policy.evaluated merge.simulated merge.queued
+    analysis.completed score.computed policy.evaluated merge.simulated merge.queued merge.cancelled
     merge.completed merge.blocked deployment.approved deployment.blocked
     integration.event_received
   )

@@ -18,6 +18,7 @@ defmodule Vela.RBAC do
       {:pull_request, :update},
       {:review, :create},
       {:merge_candidate, :simulate},
+      {:merge_candidate, :cancel},
       {:release_candidate, :create},
       {:agent_policy, :update}
     ],

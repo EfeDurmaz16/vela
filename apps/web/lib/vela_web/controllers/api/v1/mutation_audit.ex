@@ -61,6 +61,34 @@ defmodule VelaWeb.Api.V1.MutationAudit do
     :ok
   end
 
+  def record_merge_cancelled!(conn, candidate) do
+    payload = %{
+      merge_candidate_id: candidate.id,
+      pull_request_id: candidate.pull_request_id,
+      base_sha: candidate.base_sha,
+      head_sha: candidate.head_sha,
+      cancelled_by_actor_id: conn.assigns.current_actor.id
+    }
+
+    append_event!(conn, %{
+      organization_id: conn.assigns.current_organization.id,
+      repository_id: candidate.repository_id,
+      event_type: "merge.cancelled",
+      resource_type: "merge_candidate",
+      resource_id: candidate.id,
+      payload: payload
+    })
+
+    insert_outbox!(%{
+      organization_id: conn.assigns.current_organization.id,
+      repository_id: candidate.repository_id,
+      event_type: "merge.cancelled",
+      payload: payload
+    })
+
+    :ok
+  end
+
   def record_job_accepted!(conn, attrs) do
     payload = %{
       job_id: attrs.job.id,

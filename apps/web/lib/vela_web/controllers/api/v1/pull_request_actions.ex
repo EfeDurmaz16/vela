@@ -51,6 +51,31 @@ defmodule VelaWeb.Api.V1.PullRequestActions do
     end
   end
 
+  def cancel_merge_candidate(conn, candidate) do
+    with {:ok, cancelled} <-
+           Repo.transaction(fn ->
+             case Merge.cancel_queued_candidate(candidate) do
+               {:ok, cancelled} ->
+                 MutationAudit.record_merge_cancelled!(conn, cancelled)
+                 cancelled
+
+               {:error, reason} ->
+                 Repo.rollback(reason)
+             end
+           end) do
+      conn
+      |> put_status(:accepted)
+      |> json(%{data: %{merge_candidate: Response.serialize(cancelled)}})
+    else
+      {:error, {:not_cancellable, status}} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{
+          error: %{code: "merge_cancel_failed", reason: "not_cancellable", status: status}
+        })
+    end
+  end
+
   defp maybe_publish_github_comment(pull_request, body, %{"publish_to_github" => true}) do
     repository = pull_request.repository
     config = Application.get_env(:vela, :github, [])

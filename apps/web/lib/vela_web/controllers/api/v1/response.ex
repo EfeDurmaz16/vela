@@ -34,6 +34,8 @@ defmodule VelaWeb.Api.V1.Response do
 
   def pull_request_not_found(conn), do: error(conn, :not_found, "pull_request_not_found")
 
+  def merge_candidate_not_found(conn), do: error(conn, :not_found, "merge_candidate_not_found")
+
   def forbidden(conn), do: error(conn, :forbidden, "forbidden")
 
   def validation_error(conn, changeset) do

@@ -90,6 +90,76 @@ defmodule VelaWeb.PullRequestMergeTest do
     assert candidate_id == candidate.id
   end
 
+  test "authenticated users can cancel a queued merge candidate", %{conn: conn} do
+    %{org: org, session: session, pull_request: pr, candidate: candidate} =
+      pr_fixture!("cancel")
+
+    {:ok, queued} =
+      Merge.transition(candidate, "queued", %{
+        target_branch: pr.target_branch,
+        queue_position: 1
+      })
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/merge-candidates/#{queued.id}/cancel", %{})
+      |> json_response(202)
+
+    assert %{
+             "data" => %{
+               "merge_candidate" => %{
+                 "id" => candidate_id,
+                 "status" => "cancelled",
+                 "queue_position" => nil
+               }
+             }
+           } = response
+
+    assert candidate_id == candidate.id
+
+    assert %{status: "cancelled", queue_position: nil} =
+             Repo.get!(Merge.MergeCandidate, candidate.id)
+
+    assert [
+             %{
+               event_type: "merge.cancelled",
+               resource_id: ^candidate_id,
+               organization_id: org_id
+             }
+           ] = Vela.Evidence.list_repository_events(pr.repository_id, 5)
+
+    assert org_id == org.id
+
+    assert [
+             %{
+               event_type: "merge.cancelled",
+               repository_id: repository_id,
+               payload: %{"merge_candidate_id" => ^candidate_id}
+             }
+           ] = Vela.Outbox.OutboxEvent |> Repo.all()
+
+    assert repository_id == pr.repository_id
+  end
+
+  test "merge cancel rejects candidates that are not queued", %{conn: conn} do
+    %{session: session, candidate: candidate} = pr_fixture!("cancel-pending")
+
+    response =
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/merge-candidates/#{candidate.id}/cancel", %{})
+      |> json_response(409)
+
+    assert %{
+             "error" => %{
+               "code" => "merge_cancel_failed",
+               "reason" => "not_cancellable",
+               "status" => "pending"
+             }
+           } = response
+  end
+
   test "reviewer role cannot queue merge even when gates pass", %{conn: conn} do
     %{org: org, session: session, pull_request: pr, reviewer: reviewer, candidate: candidate} =
       pr_fixture!("reviewer-denied", "reviewer")
