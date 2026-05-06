@@ -374,10 +374,14 @@ Completed commits from this plan:
 - 87. `test(merge): cover branch protection gates`
 - 88. `feat(merge): add base sha freshness gate`
 - 89. `test(merge): cover stale base denial`
+- 90. `feat(merge): add tree equivalence state model`
+- 91. `test(merge): cover tree equivalence transitions`
+- 92. `feat(merge): add queue position model`
+- 93. `test(merge): cover queue ordering`
 
 Next recommended commit:
 
-- 90. `feat(merge): add tree equivalence state model`
+- 94. `feat(merge): add queue dequeue/cancel action`
 
 ## Success Criteria
 
