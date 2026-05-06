@@ -46,9 +46,17 @@ defmodule Vela.Auth.ApiToken do
       :revoked_at
     ])
     |> validate_required([:organization_id, :actor_id, :name, :scopes, :status, :expires_at])
+    |> validate_non_empty_scopes()
     |> Vela.Validation.validate_inclusion(:status, @statuses)
     |> validate_subset(:scopes, @scopes)
     |> foreign_key_constraint(:organization_id)
     |> foreign_key_constraint(:actor_id)
+  end
+
+  defp validate_non_empty_scopes(changeset) do
+    case get_field(changeset, :scopes) do
+      [_ | _] -> changeset
+      _ -> add_error(changeset, :scopes, "can't be blank")
+    end
   end
 end
