@@ -93,9 +93,28 @@ defmodule Vela.Forge.PullRequests do
     |> Repo.one!()
   end
 
+  def latest_score(%PullRequest{readiness_scores: []}) do
+    %{
+      verdict: "unknown",
+      overall_score: 0,
+      behavioral_score: 0,
+      correctness_score: 0,
+      security_score: 0,
+      performance_score: 0,
+      ux_score: 0,
+      test_evidence_score: 0,
+      agent_provenance_score: 0,
+      explanation: "No readiness score has been recorded for this pull request yet.",
+      blocking_findings: [],
+      required_actions: ["Run analysis before treating this pull request as queue-ready."]
+    }
+  end
+
   def latest_score(%PullRequest{readiness_scores: scores}) do
     Enum.max_by(scores, & &1.inserted_at, DateTime)
   end
+
+  def latest_merge_candidate(%PullRequest{merge_candidates: []}), do: nil
 
   def latest_merge_candidate(%PullRequest{merge_candidates: candidates}) do
     Enum.max_by(candidates, & &1.inserted_at, DateTime)
