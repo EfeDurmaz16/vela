@@ -34,6 +34,29 @@ defmodule Vela.Forge do
   end
 
   def create_branch(attrs), do: %Branch{} |> Branch.changeset(attrs) |> Repo.insert()
+
+  def upsert_branch(repository_id, attrs) do
+    now = DateTime.utc_now(:second)
+
+    attrs =
+      attrs
+      |> Map.put(:repository_id, repository_id)
+      |> Map.put_new(:protected, false)
+
+    %Branch{}
+    |> Branch.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: [
+        set: [
+          current_sha: attrs.current_sha,
+          protected: attrs.protected,
+          updated_at: now
+        ]
+      ],
+      conflict_target: [:repository_id, :name]
+    )
+  end
+
   def create_change(attrs), do: %Change{} |> Change.changeset(attrs) |> Repo.insert()
 
   def create_pull_request(attrs), do: PullRequests.create(attrs)

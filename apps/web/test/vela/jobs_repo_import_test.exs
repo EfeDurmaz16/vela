@@ -10,20 +10,24 @@ defmodule Vela.JobsRepoImportTest do
     Application.put_env(:vela, :github,
       token: "ghp_test",
       transport: fn req ->
-        assert req.url.path == "/repos/vela/core"
+        case req.url.path do
+          "/repos/vela/core" ->
+            {:ok,
+             %{
+               status: 200,
+               body: %{
+                 "id" => 42,
+                 "name" => "core",
+                 "full_name" => "vela/core",
+                 "html_url" => "https://github.com/vela/core",
+                 "private" => false,
+                 "default_branch" => "trunk"
+               }
+             }}
 
-        {:ok,
-         %{
-           status: 200,
-           body: %{
-             "id" => 42,
-             "name" => "core",
-             "full_name" => "vela/core",
-             "html_url" => "https://github.com/vela/core",
-             "private" => false,
-             "default_branch" => "trunk"
-           }
-         }}
+          "/repos/vela/core/branches" ->
+            {:ok, %{status: 200, body: []}}
+        end
       end
     )
 

@@ -66,6 +66,13 @@ defmodule Vela.Git.GitHubClient do
     end
   end
 
+  def list_branches(attrs) do
+    with {:ok, branches} <-
+           get_json(attrs, "/repos/#{owner(attrs)}/#{repo(attrs)}/branches?per_page=100") do
+      {:ok, Enum.map(branches, &normalize_branch/1)}
+    end
+  end
+
   @impl Vela.Git.RefService
   def list_refs(attrs) do
     with {:ok, refs} <-
@@ -180,6 +187,13 @@ defmodule Vela.Git.GitHubClient do
       ref: ref["ref"],
       sha: get_in(ref, ["object", "sha"]),
       type: get_in(ref, ["object", "type"])
+    }
+
+  defp normalize_branch(branch),
+    do: %{
+      name: branch["name"],
+      current_sha: get_in(branch, ["commit", "sha"]),
+      protected: Map.get(branch, "protected", false)
     }
 
   defp normalize_pull_request_status(%{"draft" => true}), do: "draft"

@@ -25,8 +25,14 @@ defmodule Vela.Jobs.RepoImportWorker do
 
     repository = Vela.Repo.get!(Vela.Forge.Repository, Map.fetch!(args, "repository_id"))
 
-    case Vela.Git.GitHubClient.import_repository(attrs) do
-      {:ok, imported} ->
+    result =
+      with {:ok, imported} <- Vela.Git.GitHubClient.import_repository(attrs),
+           {:ok, branches} <- Vela.Git.GitHubClient.list_branches(attrs) do
+        {:ok, imported, branches}
+      end
+
+    case result do
+      {:ok, imported, branches} ->
         with {:ok, _repository} <-
                Vela.Forge.update_repository(repository, %{
                  name: imported.name,
@@ -42,7 +48,8 @@ defmodule Vela.Jobs.RepoImportWorker do
                  imported_at: DateTime.utc_now(:second),
                  last_import_error: nil,
                  health_status: "healthy"
-               }) do
+               }),
+             :ok <- import_branches(repository.id, branches) do
           :ok
         end
 
@@ -62,4 +69,13 @@ defmodule Vela.Jobs.RepoImportWorker do
     do: {:error, {:unsupported_provider, provider}}
 
   defp import_repository(_args), do: {:error, :missing_provider}
+
+  defp import_branches(repository_id, branches) do
+    Enum.reduce_while(branches, :ok, fn branch, :ok ->
+      case Vela.Forge.upsert_branch(repository_id, branch) do
+        {:ok, _branch} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
 end
