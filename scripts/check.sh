@@ -11,3 +11,6 @@ if [ "$foundation_controller_lines" -gt 300 ]; then
   echo "FoundationController is ${foundation_controller_lines} lines; keep API orchestration in focused support modules." >&2
   exit 1
 fi
+
+cd ../..
+node --test packages/sdk-js/test/*.test.mjs
