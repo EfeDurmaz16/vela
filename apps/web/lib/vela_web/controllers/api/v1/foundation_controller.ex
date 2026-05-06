@@ -2,6 +2,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
   alias Vela.{Accounts, Agents, Evidence, Forge, Integrations}
+  alias VelaWeb.Api.V1.EvidenceActions
   alias VelaWeb.Api.V1.MergeActions
   alias VelaWeb.Api.V1.PullRequestActions
   alias VelaWeb.Api.V1.ReadModels
@@ -17,6 +18,8 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   def evidence_events(conn, params),
     do: Response.paged(conn, Evidence.list_recent_events(Response.page_size(params)), params)
+
+  def verify_evidence(conn, params), do: EvidenceActions.verify_chain(conn, params)
 
   def integrations(conn, params),
     do: Response.paged(conn, Integrations.list_integrations(), params)

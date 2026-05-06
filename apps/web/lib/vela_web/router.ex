@@ -59,6 +59,7 @@ defmodule VelaWeb.Router do
     get "/merge-candidates", FoundationController, :merge_candidates
     get "/releases", FoundationController, :releases
     get "/evidence-events", FoundationController, :evidence_events
+    get "/evidence-events/verify", FoundationController, :verify_evidence
     get "/integrations", FoundationController, :integrations
     get "/service-connections", FoundationController, :service_connections
     get "/environments", FoundationController, :environments
