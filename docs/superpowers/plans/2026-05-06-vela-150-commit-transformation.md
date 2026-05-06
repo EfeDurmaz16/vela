@@ -412,10 +412,16 @@ Completed commits from this plan:
 - 122. `test(live): cover repository import form`
 - 123. `feat(ui): add PR comment form`
 - 124. `test(live): cover PR comment form`
+- 125. `feat(ui): add merge queue button with gate errors`
+- corrective. `fix(merge): allow ready candidates to enter queue`
+- 126. `test(live): cover merge queue button states`
+- 127. `feat(ui): add diff file list surface`
+- corrective. `fix(forge): tolerate sparse pull request file attrs`
+- 128. `test(live): cover changed file rendering`
 
 Next recommended commit:
 
-- 125. `feat(ui): add merge queue button with gate errors`
+- 129. `feat(ui): add evidence verifier status`
 
 ## Success Criteria
 
