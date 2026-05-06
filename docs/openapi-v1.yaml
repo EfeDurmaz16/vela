@@ -168,6 +168,15 @@ paths:
       summary: List merge candidates
       responses:
         "200": { $ref: "#/components/responses/Collection" }
+  /merge-candidates/{id}/cancel:
+    post:
+      summary: Cancel a queued merge candidate
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202": { $ref: "#/components/responses/Object" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
   /merge-candidates/{id}/simulate:
     post:
       summary: Queue merge simulation

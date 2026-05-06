@@ -44,6 +44,7 @@ Phase 0 route surface and auth posture:
 | `POST /api/v1/repos/:id/sync-pull-request` | Session + tenant check + RBAC | Session + tenant check + RBAC | GitHub PR sync job. |
 | `POST /api/v1/pull-requests/:id/comments` | Session + tenant check + RBAC | Session + tenant check + RBAC | `reviewer`, `maintainer`, `admin`, `owner`. |
 | `POST /api/v1/pull-requests/:id/merge` | Session + tenant check + RBAC + merge gates | Session + tenant check + RBAC + merge gates | Maintainer-level merge queue plus approval/readiness gates. |
+| `POST /api/v1/merge-candidates/:id/cancel` | Session + tenant check + RBAC | Session + tenant check + RBAC | Maintainer-level cancellation for queued candidates. |
 | `POST /api/v1/merge-candidates/:id/simulate` | Session + tenant check | Session + tenant check | Simulation job route. |
 
 Operational endpoints:
@@ -56,7 +57,9 @@ Webhook events include `repo.push`, `pull_request.opened`, `pull_request.updated
 
 WorkOS AuthKit is handled server-side: the login route returns a WorkOS authorization URL and the callback route exchanges the returned code with WorkOS before reconciling Vela user, organization, membership and human actor records. On successful callback, Vela stores a compact `vela_api_auth` identity reference in the signed Phoenix session cookie. Protected API routes rehydrate `current_user`, `current_organization`, `current_membership`, and `current_actor` from those IDs on each request; missing, deleted, or mismatched records return `401 {"error":{"code":"api_auth_required"}}`.
 
-Demo read routes require `config :vela, :api, demo_mode?: true`; when disabled they return `401 {"error":{"code":"demo_mode_required"}}`. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after a non-blocking approved review and latest repository readiness verdict of `ship`, then writes `merge.queued` evidence/outbox.
+Demo read routes require `config :vela, :api, demo_mode?: true`; when disabled they return `401 {"error":{"code":"demo_mode_required"}}`. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing, merge cancellation and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after all merge gates pass, then writes `merge.queued` evidence/outbox. Merge cancellation moves a queued candidate to `cancelled`, clears its queue position, compacts the repository/branch queue and writes `merge.cancelled` evidence/outbox.
+
+Merge gate failures use `422 {"error":{"code":"merge_gate_failed","reason":"..."}}`. Current reasons are `missing_approval`, `blocking_review`, `branch_protection_missing_approvals`, `branch_protection_missing_checks`, `stale_base_sha`, `missing_readiness`, `readiness_not_ship`, `missing_merge_candidate` and invalid transition strings. Merge cancel failures use `409 {"error":{"code":"merge_cancel_failed","reason":"not_cancellable","status":"..."}}` when the candidate is not currently `queued`.
 
 ## GitHub Sync Depth
 
@@ -82,7 +85,7 @@ The v1 API keeps route ownership in `VelaWeb.Api.V1.FoundationController`, but t
 - `VelaWeb.Api.V1.IdempotentMutation` wraps mutating endpoints that support `Idempotency-Key`.
 - `VelaWeb.Api.V1.MutationAudit` writes evidence and outbox rows for accepted mutations.
 - `VelaWeb.Api.V1.RepoActions` owns repository import and PR sync orchestration.
-- `VelaWeb.Api.V1.PullRequestActions` owns PR comments and reviewed merge queueing.
+- `VelaWeb.Api.V1.PullRequestActions` owns PR comments, reviewed merge queueing and merge cancellation.
 - `VelaWeb.Api.V1.MergeActions` owns merge candidate simulation job orchestration.
 - `VelaWeb.Api.V1.WebhookActions` owns provider webhook verification, tenant context validation and ingestion.
 - `VelaWeb.Api.V1.ReadModels` owns read-side collection queries that do not belong in the controller.
