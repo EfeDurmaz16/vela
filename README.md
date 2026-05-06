@@ -1,5 +1,7 @@
 # Vela
 
+[![CI](https://github.com/EfeDurmaz16/vela/actions/workflows/ci.yml/badge.svg)](https://github.com/EfeDurmaz16/vela/actions/workflows/ci.yml)
+
 Trusted forge control plane for human and agent-generated software changes.
 
 Vela sits next to Git hosting and makes code-change trust explicit before a
@@ -61,6 +63,12 @@ compliance automation.
 
 ## Local Development
 
+Prerequisites:
+
+- Elixir/OTP compatible with `apps/web/mix.exs`
+- Postgres
+- Node.js 22+ for SDK tests
+
 ```bash
 ./scripts/setup.sh
 ./scripts/dev.sh
@@ -82,6 +90,14 @@ Run the same check used by CI:
 - `packages/protocol` holds shared event and score schema contracts.
 - `packages/sdk-js` holds the dependency-free Phase 0 JavaScript API client.
 - `docs` records product, architecture, security, evidence and roadmap decisions.
+
+## Integration Surface
+
+- API reference: [docs/api.md](docs/api.md)
+- Protocol schemas: [packages/protocol](packages/protocol)
+- JavaScript SDK: [packages/sdk-js](packages/sdk-js)
+- Webhook examples: [packages/protocol/examples/webhooks](packages/protocol/examples/webhooks)
+- Status audit: `./scripts/status-audit.sh`
 
 ## Docs
 
