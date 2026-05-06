@@ -58,6 +58,20 @@ WorkOS AuthKit is handled server-side: the login route returns a WorkOS authoriz
 
 Demo read routes require `config :vela, :api, demo_mode?: true`; when disabled they return `401 {"error":{"code":"demo_mode_required"}}`. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after a non-blocking approved review and latest repository readiness verdict of `ship`, then writes `merge.queued` evidence/outbox.
 
+## GitHub Sync Depth
+
+Repository import trusts GitHub repository metadata for provider identity, display name, full name, visibility, default branch, HTML URL and branch list. Branch sync persists branch name, current commit SHA and GitHub's protected flag. Vela does not infer branch protection rules from this flag yet; detailed rule import belongs to a later provider-sync step.
+
+Pull request sync trusts GitHub for PR provider identity, PR number, title/body, source and target branches, head/base SHAs, author login, HTML URL and draft/open/closed/merged state. The worker persists the PR by `(repository_id, provider, external_number)` and keeps provider ids unique so repeated syncs update the same local PR.
+
+Changed-file sync stores a provider-neutral file record per PR path: path, previous path for renames, status, blob SHA, additions, deletions, total changes, optional patch body, blob URL and raw URL. The normalized diff model treats unknown provider statuses as `changed`, requires paths and non-negative counters, and only requires patch text for textual changed-file statuses. Deleted files and unchanged/binary-style records can omit patch bodies.
+
+Review sync stores GitHub review id, author login, submitted timestamp, summary body and mapped state. GitHub `APPROVED` maps to `approve`, `CHANGES_REQUESTED` maps to `request_changes`, and `COMMENTED` maps to `comment`. Repeated syncs update the existing provider review row instead of creating duplicates.
+
+Check-run sync stores GitHub check id, name, status, conclusion, details URL and start/completion timestamps for the PR head SHA. Conclusions such as `success`, `failure` and `skipped` are preserved. Unknown conclusions normalize to `neutral`; unknown statuses normalize to `pending`.
+
+Vela does not treat GitHub metadata as final launch proof. Imported PR files, reviews and check runs are readiness inputs. Merge queueing still requires local tenant checks, RBAC, merge gates, readiness state and evidence writes before any local merge candidate can move to `queued`.
+
 The OpenAPI draft lives at `docs/openapi-v1.yaml`. Internal sidecar contracts remain under `services/*/README.md` until Rust/Python sidecars are implemented.
 
 ## Internal API Modules
