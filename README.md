@@ -97,4 +97,5 @@ Run the same check used by CI:
 - [API](docs/api.md)
 - [Deployment](docs/deployment.md)
 - [Roadmap](docs/roadmap.md)
+- [Transformation summary](docs/transformation-summary.md)
 - [Contributing](CONTRIBUTING.md)

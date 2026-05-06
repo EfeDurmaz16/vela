@@ -440,10 +440,11 @@ Completed commits from this plan:
 - 147. `chore(repo): add issue templates`
 - 148. `chore(repo): add PR template`
 - 149. `chore(repo): final check script and status audit`
+- 150. `docs: add final transformation summary`
 
 Next recommended commit:
 
-- 150. `docs: add final transformation summary`
+- Follow-up sprint: outbound webhook delivery, provider merge adapter, API token issuance.
 
 ## Success Criteria
 
