@@ -49,3 +49,4 @@ Open `http://localhost:4000`.
 - [API](docs/api.md)
 - [Deployment](docs/deployment.md)
 - [Roadmap](docs/roadmap.md)
+- [Contributing](CONTRIBUTING.md)
