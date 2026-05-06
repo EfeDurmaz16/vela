@@ -9,6 +9,7 @@ defmodule Vela.Forge do
     Branch,
     Change,
     Issue,
+    PullRequests,
     PullRequest,
     Repositories,
     Repository,
@@ -35,34 +36,17 @@ defmodule Vela.Forge do
   def create_branch(attrs), do: %Branch{} |> Branch.changeset(attrs) |> Repo.insert()
   def create_change(attrs), do: %Change{} |> Change.changeset(attrs) |> Repo.insert()
 
-  def create_pull_request(attrs),
-    do: %PullRequest{} |> PullRequest.changeset(attrs) |> Repo.insert()
+  def create_pull_request(attrs), do: PullRequests.create(attrs)
 
   def update_pull_request(%PullRequest{} = pr, attrs),
-    do: pr |> PullRequest.changeset(attrs) |> Repo.update()
+    do: PullRequests.update(pr, attrs)
 
   def upsert_pull_request_by_provider(repository_id, provider, external_number, attrs) do
-    query =
-      from pr in PullRequest,
-        where:
-          pr.repository_id == ^repository_id and pr.provider == ^provider and
-            pr.external_number == ^external_number
-
-    case Repo.one(query) do
-      nil ->
-        create_pull_request(Map.merge(attrs, %{repository_id: repository_id, provider: provider}))
-
-      pr ->
-        update_pull_request(pr, attrs)
-    end
+    PullRequests.upsert_by_provider(repository_id, provider, external_number, attrs)
   end
 
   def get_pull_request_for_org(organization_id, id) do
-    PullRequest
-    |> join(:inner, [pr], r in assoc(pr, :repository))
-    |> where([pr, r], r.organization_id == ^organization_id and pr.id == ^id)
-    |> preload([:repository])
-    |> Repo.one()
+    PullRequests.get_for_org(organization_id, id)
   end
 
   def create_review(attrs), do: %Review{} |> Review.changeset(attrs) |> Repo.insert()
@@ -95,52 +79,20 @@ defmodule Vela.Forge do
     |> Repo.one()
   end
 
-  def count_open_pull_requests(repository_id) do
-    PullRequest
-    |> where([pr], pr.repository_id == ^repository_id)
-    |> where([pr], pr.status in ["open", "ready_for_review", "blocked", "approved", "queued"])
-    |> Repo.aggregate(:count)
-  end
+  def count_open_pull_requests(repository_id), do: PullRequests.count_open(repository_id)
 
-  def list_pull_requests do
-    PullRequest
-    |> preload([:author_actor, :readiness_scores, :merge_candidates, repository: :organization])
-    |> order_by([pr], desc: pr.inserted_at)
-    |> Repo.all()
-  end
+  def list_pull_requests, do: PullRequests.list()
 
-  def active_pull_requests(limit \\ 6) do
-    PullRequest
-    |> where([pr], pr.status in ["open", "ready_for_review", "blocked", "approved", "queued"])
-    |> preload([:author_actor, :readiness_scores, :merge_candidates, repository: :organization])
-    |> order_by([pr], desc: pr.inserted_at)
-    |> limit(^limit)
-    |> Repo.all()
-  end
+  def active_pull_requests(limit \\ 6), do: PullRequests.active(limit)
 
   def get_repository_by_slugs!(org_slug, repo_slug),
     do: Repositories.get_by_slugs!(org_slug, repo_slug)
 
-  def get_pull_request_for_route!(org_slug, repo_slug, id) do
-    PullRequest
-    |> join(:inner, [pr], r in assoc(pr, :repository))
-    |> join(:inner, [pr, r], o in assoc(r, :organization))
-    |> where([pr, r, o], o.slug == ^org_slug and r.slug == ^repo_slug and pr.id == ^id)
-    |> preload([
-      :author_actor,
-      :reviews,
-      :readiness_scores,
-      :merge_candidates,
-      repository: [:organization]
-    ])
-    |> Repo.one!()
-  end
+  def get_pull_request_for_route!(org_slug, repo_slug, id),
+    do: PullRequests.get_for_route!(org_slug, repo_slug, id)
 
-  def latest_score(%PullRequest{readiness_scores: scores}) do
-    Enum.max_by(scores, & &1.inserted_at, DateTime)
-  end
+  def latest_score(%PullRequest{} = pull_request), do: PullRequests.latest_score(pull_request)
 
-  def latest_merge_candidate(%PullRequest{merge_candidates: candidates}) do
-    Enum.max_by(candidates, & &1.inserted_at, DateTime)
-  end
+  def latest_merge_candidate(%PullRequest{} = pull_request),
+    do: PullRequests.latest_merge_candidate(pull_request)
 end
