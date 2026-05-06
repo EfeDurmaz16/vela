@@ -1,7 +1,7 @@
 defmodule VelaWeb.AppLiveTest do
   use VelaWeb.ConnCase
 
-  alias Vela.{Accounts, Agents, Evidence, Forge}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Merge}
 
   setup do
     Code.eval_file("priv/repo/seeds.exs")
@@ -190,6 +190,57 @@ defmodule VelaWeb.AppLiveTest do
     assert pr_id == pr.id
   end
 
+  test "merge queue button renders queued and gate failure states", %{conn: conn} do
+    {ship_pr, ship_view} = open_pr(conn, "Add agent spending policy enforcement")
+
+    ship_html =
+      ship_view
+      |> form("#merge-queue-form")
+      |> render_submit()
+
+    assert ship_html =~ "Status queued"
+
+    assert %{status: "queued", queue_position: 1} =
+             Vela.Repo.get!(Merge.MergeCandidate, ship_pr.merge_candidate_id)
+
+    {_missing_approval_pr, missing_approval_view} =
+      open_pr(conn, "Refactor auth token validation")
+
+    missing_approval_html =
+      missing_approval_view
+      |> form("#merge-queue-form")
+      |> render_submit()
+
+    assert missing_approval_html =~ "Missing approving review."
+
+    {_blocking_pr, blocking_view} = open_pr(conn, "Queue blocking review example")
+
+    blocking_html =
+      blocking_view
+      |> form("#merge-queue-form")
+      |> render_submit()
+
+    assert blocking_html =~ "Blocking review must be resolved."
+
+    {stale_pr, stale_view} = open_pr(conn, "Queue stale base branch example")
+
+    {:ok, _check} =
+      Forge.upsert_check_run(stale_pr.repository_id, stale_pr.id, %{
+        provider: "github",
+        external_id: "stale-check-#{System.unique_integer([:positive])}",
+        name: "test",
+        status: "completed",
+        conclusion: "success"
+      })
+
+    stale_html =
+      stale_view
+      |> form("#merge-queue-form")
+      |> render_submit()
+
+    assert stale_html =~ "Base branch moved; refresh the pull request."
+  end
+
   test "agents launches evidence and settings render", %{conn: conn} do
     [agent | _] = Agents.list_agent_profiles()
 
@@ -251,5 +302,16 @@ defmodule VelaWeb.AppLiveTest do
 
     assert [%{event_type: "repo.import_queued", resource_id: ^repo_id}] =
              Evidence.list_repository_events(repo.id, 5)
+  end
+
+  defp open_pr(conn, title) do
+    pr =
+      Forge.active_pull_requests(10)
+      |> Enum.find(&(&1.title == title))
+
+    {:ok, view, _html} =
+      live(conn, "/repos/#{pr.repository.organization.slug}/#{pr.repository.slug}/pulls/#{pr.id}")
+
+    {pr, view}
   end
 end
