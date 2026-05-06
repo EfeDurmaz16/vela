@@ -420,10 +420,12 @@ Completed commits from this plan:
 - 128. `test(live): cover changed file rendering`
 - 129. `feat(ui): add evidence verifier status`
 - 130. `test(live): cover evidence verifier status`
+- 131. `feat(protocol): define event envelope versioning`
+- 132. `test(protocol): validate event schemas in mix test`
 
 Next recommended commit:
 
-- 131. `feat(protocol): define event envelope versioning`
+- 133. `feat(sdk-js): add minimal typed client`
 
 ## Success Criteria
 
