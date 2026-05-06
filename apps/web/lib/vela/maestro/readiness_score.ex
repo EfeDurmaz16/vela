@@ -20,6 +20,7 @@ defmodule Vela.Maestro.ReadinessScore do
     field :dimensions, :map, default: %{}
     field :explanation, :string
     field :evidence_refs, {:array, :binary_id}, default: []
+    field :input_refs, :map, default: %{}
 
     belongs_to :organization, Vela.Accounts.Organization
     belongs_to :repository, Vela.Forge.Repository
@@ -43,7 +44,8 @@ defmodule Vela.Maestro.ReadinessScore do
       :confidence,
       :dimensions,
       :explanation,
-      :evidence_refs
+      :evidence_refs,
+      :input_refs
     ])
     |> validate_required([
       :organization_id,

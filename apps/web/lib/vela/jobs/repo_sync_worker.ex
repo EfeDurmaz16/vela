@@ -128,7 +128,8 @@ defmodule Vela.Jobs.RepoSyncWorker do
       confidence: readiness.confidence,
       dimensions: readiness.dimensions,
       explanation: "Seeded from GitHub PR sync until full analysis completes.",
-      evidence_refs: []
+      evidence_refs: [],
+      input_refs: Vela.Maestro.ReadinessInputs.collect_for_pull_request(pr.id)
     })
   end
 
