@@ -9,48 +9,42 @@ The backend exposes a versioned JSON surface under `/api/v1`. Collections return
 }
 ```
 
-Phase 0 route surface:
+Phase 0 route surface and auth posture:
 
-Public/read-only routes:
-
-- `GET /api/v1/orgs`
-- `GET /api/v1/repos`
-- `GET /api/v1/repos/:id`
-- `GET /api/v1/repos/:id/readiness`
-- `GET /api/v1/repos/:id/trust`
-- `GET /api/v1/changes`
-- `GET /api/v1/changes/:id/readiness`
-- `GET /api/v1/pull-requests`
-- `GET /api/v1/agents`
-- `GET /api/v1/agents/:id/sessions`
-- `GET /api/v1/agents/:id/policies`
-- `GET /api/v1/analysis-runs`
-- `GET /api/v1/readiness-scores`
-- `GET /api/v1/merge-candidates`
-- `GET /api/v1/releases`
-- `GET /api/v1/evidence-events`
-- `GET /api/v1/evidence-events/verify?organization_id=:organization_id[&repository_id=:repository_id]`
-- `GET /api/v1/integrations`
-- `GET /api/v1/service-connections`
-- `GET /api/v1/environments`
-- `POST /api/v1/webhooks/:provider`
-
-WorkOS session routes:
-
-- `GET /api/v1/auth/workos/login`
-- `GET /api/v1/auth/workos/callback`
-
-Authenticated API routes:
-
-- `POST /api/v1/repos`
-- `PUT /api/v1/repos/:id`
-- `DELETE /api/v1/repos/:id`
-- `POST /api/v1/repos/import`
-- `POST /api/v1/repos/:id/import`
-- `POST /api/v1/repos/:id/sync-pull-request`
-- `POST /api/v1/pull-requests/:id/comments`
-- `POST /api/v1/pull-requests/:id/merge`
-- `POST /api/v1/merge-candidates/:id/simulate`
+| Endpoint | Dev/test demo mode | Production default | Notes |
+| --- | --- | --- | --- |
+| `GET /api/v1/orgs` | Demo read | Disabled without demo mode | Returns `demo_mode_required` when `:api, demo_mode?: false`. |
+| `GET /api/v1/repos` | Demo read | Disabled without demo mode | Collection only. Per-repository reads are session protected. |
+| `GET /api/v1/repos/:id/trust` | Demo read | Disabled without demo mode | Trust signal collection for a repository id. |
+| `GET /api/v1/changes` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/changes/:id/readiness` | Demo read | Disabled without demo mode | Readiness rows for a change id. |
+| `GET /api/v1/pull-requests` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/agents` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/agents/:id/sessions` | Demo read | Disabled without demo mode | Agent session collection. |
+| `GET /api/v1/agents/:id/policies` | Demo read | Disabled without demo mode | Agent policy collection. |
+| `GET /api/v1/analysis-runs` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/readiness-scores` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/merge-candidates` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/releases` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/evidence-events` | Demo read | Disabled without demo mode | Recent evidence events. |
+| `GET /api/v1/evidence-events/verify?organization_id=:organization_id[&repository_id=:repository_id]` | Demo read | Disabled without demo mode | Chain verification summary. |
+| `GET /api/v1/integrations` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/service-connections` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/environments` | Demo read | Disabled without demo mode | Collection endpoint. |
+| `GET /api/v1/auth/workos/login` | Public auth bootstrap | Public auth bootstrap | Returns a server-generated WorkOS authorization URL. |
+| `GET /api/v1/auth/workos/callback` | Public auth callback | Public auth callback | Exchanges WorkOS code and writes the signed Phoenix session. |
+| `POST /api/v1/webhooks/:provider` | Signature verified | Signature verified | Route is unauthenticated; provider verifier gates trust. |
+| `POST /api/v1/repos` | Session + RBAC | Session + RBAC | `owner`, `admin`, `maintainer`. |
+| `GET /api/v1/repos/:id` | Session + tenant check | Session + tenant check | Authenticated per-repository read. |
+| `PUT /api/v1/repos/:id` | Session + RBAC | Session + RBAC | `owner`, `admin`, `maintainer`. |
+| `DELETE /api/v1/repos/:id` | Session + RBAC | Session + RBAC | `owner`, `admin`; maintainers cannot delete. |
+| `POST /api/v1/repos/import` | Session + RBAC | Session + RBAC | Starts GitHub import placeholder/job. |
+| `POST /api/v1/repos/:id/import` | Session + tenant check + RBAC | Session + tenant check + RBAC | Existing repository import job. |
+| `GET /api/v1/repos/:id/readiness` | Session + tenant check | Session + tenant check | Authenticated repository readiness summary. |
+| `POST /api/v1/repos/:id/sync-pull-request` | Session + tenant check + RBAC | Session + tenant check + RBAC | GitHub PR sync job. |
+| `POST /api/v1/pull-requests/:id/comments` | Session + tenant check + RBAC | Session + tenant check + RBAC | `reviewer`, `maintainer`, `admin`, `owner`. |
+| `POST /api/v1/pull-requests/:id/merge` | Session + tenant check + RBAC + merge gates | Session + tenant check + RBAC + merge gates | Maintainer-level merge queue plus approval/readiness gates. |
+| `POST /api/v1/merge-candidates/:id/simulate` | Session + tenant check | Session + tenant check | Simulation job route. |
 
 Operational endpoints:
 
@@ -62,7 +56,7 @@ Webhook events include `repo.push`, `pull_request.opened`, `pull_request.updated
 
 WorkOS AuthKit is handled server-side: the login route returns a WorkOS authorization URL and the callback route exchanges the returned code with WorkOS before reconciling Vela user, organization, membership and human actor records. On successful callback, Vela stores a compact `vela_api_auth` identity reference in the signed Phoenix session cookie. Protected API routes rehydrate `current_user`, `current_organization`, `current_membership`, and `current_actor` from those IDs on each request; missing, deleted, or mismatched records return `401 {"error":{"code":"api_auth_required"}}`.
 
-The read-only collection endpoints intentionally remain public in phase 0 so existing demos, smoke checks, and API surface tests do not need a browser-authenticated session. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after a non-blocking approved review and latest repository readiness verdict of `ship`, then writes `merge.queued` evidence/outbox.
+Demo read routes require `config :vela, :api, demo_mode?: true`; when disabled they return `401 {"error":{"code":"demo_mode_required"}}`. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after a non-blocking approved review and latest repository readiness verdict of `ship`, then writes `merge.queued` evidence/outbox.
 
 The OpenAPI draft lives at `docs/openapi-v1.yaml`. Internal sidecar contracts remain under `services/*/README.md` until Rust/Python sidecars are implemented.
 
