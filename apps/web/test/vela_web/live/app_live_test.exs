@@ -145,4 +145,21 @@ defmodule VelaWeb.AppLiveTest do
       assert html =~ "Vela"
     end
   end
+
+  test "evidence ledger renders populated and empty states", %{conn: conn} do
+    {:ok, _view, populated_html} = live(conn, ~p"/evidence")
+
+    assert populated_html =~ "Evidence Ledger"
+    assert populated_html =~ "hash"
+    assert populated_html =~ "prev"
+
+    Vela.Repo.delete_all(Vela.Evidence.TamperAlarm)
+    Vela.Repo.delete_all(Vela.Evidence.EvidenceEvent)
+
+    {:ok, _view, empty_html} = live(conn, ~p"/evidence")
+
+    assert empty_html =~ "Evidence Ledger"
+    assert empty_html =~ "No evidence events yet"
+    assert empty_html =~ "Append the first trusted action"
+  end
 end

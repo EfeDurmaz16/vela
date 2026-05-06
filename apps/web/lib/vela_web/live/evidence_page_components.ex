@@ -18,7 +18,13 @@ defmodule VelaWeb.EvidencePageComponents do
           <span class="rounded-md border border-border px-2 py-1">event type</span>
           <span class="rounded-md border border-border px-2 py-1">hash chain</span>
         </div>
-        <div class="divide-y divide-border">
+        <div :if={@evidence_events == []} class="rounded-lg border border-border bg-bg p-4">
+          <p class="text-sm font-medium text-fg">No evidence events yet</p>
+          <p class="mt-1 text-sm text-muted-fg">
+            Append the first trusted action before relying on the ledger for reconstruction.
+          </p>
+        </div>
+        <div :if={@evidence_events != []} class="divide-y divide-border">
           <.evidence_item :for={event <- @evidence_events} event={event} />
         </div>
       </div>
