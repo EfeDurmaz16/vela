@@ -111,8 +111,8 @@ defmodule Vela.Forge do
           status: attrs.status,
           conclusion: attrs.conclusion,
           details_url: attrs.details_url,
-          started_at: attrs.started_at,
-          completed_at: attrs.completed_at,
+          started_at: Map.get(attrs, :started_at),
+          completed_at: Map.get(attrs, :completed_at),
           updated_at: now
         ]
       ],

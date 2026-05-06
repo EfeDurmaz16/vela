@@ -92,7 +92,38 @@ defmodule Vela.JobsRepoSyncTest do
              }}
 
           "/repos/vela/core/commits/headsha/check-runs" ->
-            {:ok, %{status: 200, body: %{"check_runs" => []}}}
+            {:ok,
+             %{
+               status: 200,
+               body: %{
+                 "check_runs" => [
+                   %{
+                     "id" => 7001,
+                     "name" => "unit tests",
+                     "status" => "completed",
+                     "conclusion" => "success",
+                     "details_url" => "https://github.test/checks/7001",
+                     "started_at" => "2026-05-06T08:20:00Z",
+                     "completed_at" => "2026-05-06T08:22:00Z"
+                   },
+                   %{
+                     "id" => 7002,
+                     "name" => "security",
+                     "status" => "completed",
+                     "conclusion" => "failure",
+                     "html_url" => "https://github.test/checks/7002",
+                     "started_at" => "2026-05-06T08:21:00Z",
+                     "completed_at" => "2026-05-06T08:23:00Z"
+                   },
+                   %{
+                     "id" => 7003,
+                     "name" => "docs",
+                     "status" => "completed",
+                     "conclusion" => "skipped"
+                   }
+                 ]
+               }
+             }}
         end
       end
     )
@@ -234,6 +265,57 @@ defmodule Vela.JobsRepoSyncTest do
              summary: "Latest state wins",
              submitted_at: ~U[2026-05-06 08:15:00Z]
            } = Repo.get_by!(Vela.Forge.Review, pull_request_id: pr.id, external_id: "9001")
+
+    check_runs =
+      Vela.Forge.CheckRun
+      |> where([check], check.pull_request_id == ^pr.id)
+      |> order_by([check], asc: check.external_id)
+      |> Repo.all()
+
+    assert [
+             %{
+               provider: "github",
+               external_id: "7001",
+               name: "unit tests",
+               status: "completed",
+               conclusion: "success",
+               details_url: "https://github.test/checks/7001",
+               started_at: ~U[2026-05-06 08:20:00Z],
+               completed_at: ~U[2026-05-06 08:22:00Z]
+             },
+             %{
+               provider: "github",
+               external_id: "7002",
+               name: "security",
+               status: "completed",
+               conclusion: "failure",
+               details_url: "https://github.test/checks/7002"
+             },
+             %{
+               provider: "github",
+               external_id: "7003",
+               name: "docs",
+               status: "completed",
+               conclusion: "skipped"
+             }
+           ] = check_runs
+
+    assert {:ok, _check_run} =
+             Forge.upsert_check_run(repo.id, pr.id, %{
+               provider: "github",
+               external_id: "7002",
+               name: "security",
+               status: "completed",
+               conclusion: "success",
+               details_url: "https://github.test/checks/7002-green"
+             })
+
+    assert Repo.aggregate(Vela.Forge.CheckRun, :count) == 3
+
+    assert %{
+             conclusion: "success",
+             details_url: "https://github.test/checks/7002-green"
+           } = Repo.get_by!(Vela.Forge.CheckRun, provider: "github", external_id: "7002")
 
     [candidate] = Vela.Merge.MergeCandidate |> Repo.all()
     assert candidate.repository_id == repo.id
