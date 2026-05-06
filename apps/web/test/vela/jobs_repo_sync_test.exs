@@ -63,7 +63,33 @@ defmodule Vela.JobsRepoSyncTest do
              }}
 
           "/repos/vela/core/pulls/17/reviews" ->
-            {:ok, %{status: 200, body: []}}
+            {:ok,
+             %{
+               status: 200,
+               body: [
+                 %{
+                   "id" => 9001,
+                   "state" => "APPROVED",
+                   "body" => "Ship it",
+                   "submitted_at" => "2026-05-06T08:00:00Z",
+                   "user" => %{"login" => "reviewer-a"}
+                 },
+                 %{
+                   "id" => 9002,
+                   "state" => "CHANGES_REQUESTED",
+                   "body" => "Needs tests",
+                   "submitted_at" => "2026-05-06T08:05:00Z",
+                   "user" => %{"login" => "reviewer-b"}
+                 },
+                 %{
+                   "id" => 9003,
+                   "state" => "COMMENTED",
+                   "body" => "Question",
+                   "submitted_at" => "2026-05-06T08:10:00Z",
+                   "user" => %{"login" => "reviewer-c"}
+                 }
+               ]
+             }}
         end
       end
     )
@@ -155,6 +181,56 @@ defmodule Vela.JobsRepoSyncTest do
                changes: 5
              }
            ] = files
+
+    reviews =
+      Vela.Forge.Review
+      |> where([review], review.pull_request_id == ^pr.id)
+      |> order_by([review], asc: review.external_id)
+      |> Repo.all()
+
+    assert [
+             %{
+               provider: "github",
+               external_id: "9001",
+               external_author_login: "reviewer-a",
+               status: "approve",
+               summary: "Ship it",
+               submitted_at: ~U[2026-05-06 08:00:00Z]
+             },
+             %{
+               provider: "github",
+               external_id: "9002",
+               external_author_login: "reviewer-b",
+               status: "request_changes",
+               summary: "Needs tests",
+               submitted_at: ~U[2026-05-06 08:05:00Z]
+             },
+             %{
+               provider: "github",
+               external_id: "9003",
+               external_author_login: "reviewer-c",
+               status: "comment",
+               summary: "Question",
+               submitted_at: ~U[2026-05-06 08:10:00Z]
+             }
+           ] = reviews
+
+    assert {:ok, _review} =
+             Forge.upsert_review_by_provider(pr.id, "github", 9001, %{
+               actor_id: actor.id,
+               status: "request_changes",
+               summary: "Latest state wins",
+               external_author_login: "reviewer-a",
+               submitted_at: ~U[2026-05-06 08:15:00Z]
+             })
+
+    assert Repo.aggregate(Vela.Forge.Review, :count) == 3
+
+    assert %{
+             status: "request_changes",
+             summary: "Latest state wins",
+             submitted_at: ~U[2026-05-06 08:15:00Z]
+           } = Repo.get_by!(Vela.Forge.Review, pull_request_id: pr.id, external_id: "9001")
 
     [candidate] = Vela.Merge.MergeCandidate |> Repo.all()
     assert candidate.repository_id == repo.id
