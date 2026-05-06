@@ -130,6 +130,22 @@ defmodule Vela.Merge.GatesTest do
     assert :ok = Gates.branch_protection_gate(pull_request)
   end
 
+  test "base_freshness_gate blocks stale pull request base sha" do
+    %{pull_request: pull_request, repo: repo} = pr_fixture!("stale-base")
+
+    assert :ok = Gates.base_freshness_gate(pull_request)
+
+    {:ok, _branch} =
+      Forge.create_branch(%{
+        repository_id: repo.id,
+        name: "main",
+        current_sha: "new-main-sha",
+        protected: true
+      })
+
+    assert {:error, :stale_base_sha} = Gates.base_freshness_gate(pull_request)
+  end
+
   defp pr_fixture!(suffix) do
     {:ok, org} =
       Accounts.create_organization(%{
