@@ -24,6 +24,34 @@ defmodule VelaWeb.RepositoryCrudTest do
     assert Repo.get!(Vela.Forge.Repository, id).organization_id == org.id
   end
 
+  test "owner admin and maintainer roles can create repositories", %{conn: conn} do
+    for role <- ~w(owner admin maintainer) do
+      {:ok, org} =
+        Accounts.create_organization(%{
+          name: "CRUD Role #{role}",
+          slug: "crud-role-#{role}"
+        })
+
+      session = auth_session_for_org!(org, "create-#{role}", role)
+
+      response =
+        conn
+        |> recycle()
+        |> init_test_session(%{ApiAuth.session_key() => session})
+        |> post(~p"/api/v1/repos", %{
+          name: "Core #{role}",
+          slug: "core-#{role}",
+          visibility: "private",
+          default_branch: "main"
+        })
+        |> json_response(201)
+
+      assert %{"data" => %{"slug" => slug, "organization_id" => org_id}} = response
+      assert slug == "core-#{role}"
+      assert org_id == org.id
+    end
+  end
+
   test "authenticated users can read and update repositories in their organization", %{conn: conn} do
     {:ok, org} = Accounts.create_organization(%{name: "CRUD Update Org", slug: "crud-update-org"})
     session = auth_session_for_org!(org, "update")
@@ -107,6 +135,72 @@ defmodule VelaWeb.RepositoryCrudTest do
     |> response(204)
 
     refute Repo.get(Vela.Forge.Repository, repo.id)
+  end
+
+  test "observer role cannot mutate repositories", %{conn: conn} do
+    {:ok, org} = Accounts.create_organization(%{name: "CRUD Observer Org", slug: "crud-observer"})
+    session = auth_session_for_org!(org, "observer", "observer")
+
+    {:ok, repo} =
+      Forge.create_repository(%{
+        organization_id: org.id,
+        name: "Observer Repo",
+        slug: "observer-repo",
+        visibility: "private",
+        default_branch: "main",
+        health_status: "healthy",
+        risk_level: "low",
+        import_status: "local"
+      })
+
+    assert_forbidden(
+      conn
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos", %{
+        name: "Denied",
+        slug: "denied",
+        visibility: "private",
+        default_branch: "main"
+      })
+    )
+
+    assert_forbidden(
+      conn
+      |> recycle()
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> put(~p"/api/v1/repos/#{repo.id}", %{risk_level: "high"})
+    )
+
+    assert_forbidden(
+      conn
+      |> recycle()
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> delete(~p"/api/v1/repos/#{repo.id}")
+    )
+
+    assert_forbidden(
+      conn
+      |> recycle()
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos/#{repo.id}/import", %{provider: "github"})
+    )
+
+    assert_forbidden(
+      conn
+      |> recycle()
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos/#{repo.id}/sync-pull-request", %{number: 12})
+    )
+
+    assert_forbidden(
+      conn
+      |> recycle()
+      |> init_test_session(%{ApiAuth.session_key() => session})
+      |> post(~p"/api/v1/repos/import", %{provider: "github", owner: "vela", repo: "denied"})
+    )
+
+    assert Repo.get(Vela.Forge.Repository, repo.id)
+    assert Forge.get_repository_by_slug_for_org(org.id, "denied") == nil
   end
 
   test "authenticated users can start a GitHub import from owner and repo", %{conn: conn} do
@@ -264,7 +358,7 @@ defmodule VelaWeb.RepositoryCrudTest do
     assert repo_id == repo.id
   end
 
-  defp auth_session_for_org!(org, suffix) do
+  defp auth_session_for_org!(org, suffix, role \\ "admin") do
     {:ok, user} =
       Accounts.create_user(%{
         email: "repo-crud-#{suffix}@example.com",
@@ -273,7 +367,7 @@ defmodule VelaWeb.RepositoryCrudTest do
       })
 
     {:ok, membership} =
-      Accounts.create_membership(%{user_id: user.id, organization_id: org.id, role: "admin"})
+      Accounts.create_membership(%{user_id: user.id, organization_id: org.id, role: role})
 
     {:ok, actor} =
       Actors.create_actor(%{
@@ -291,5 +385,9 @@ defmodule VelaWeb.RepositoryCrudTest do
       "membership_id" => membership.id,
       "actor_id" => actor.id
     }
+  end
+
+  defp assert_forbidden(conn) do
+    assert %{"error" => %{"code" => "forbidden"}} = json_response(conn, 403)
   end
 end

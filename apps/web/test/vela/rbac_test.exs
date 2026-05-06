@@ -9,6 +9,16 @@ defmodule Vela.RBACTest do
     assert RBAC.allowed?(%Membership{role: "admin"}, :agent_policy, :update)
   end
 
+  test "maintainers can operate repository workflows but cannot delete repositories" do
+    membership = %Membership{role: "maintainer"}
+
+    assert RBAC.allowed?(membership, :repository, :create)
+    assert RBAC.allowed?(membership, :repository, :update)
+    assert RBAC.allowed?(membership, :repository, :import)
+    assert RBAC.allowed?(membership, :repository, :sync_pull_request)
+    refute RBAC.allowed?(membership, :repository, :delete)
+  end
+
   test "reviewers can review but observers cannot mutate" do
     assert RBAC.allowed?(%Membership{role: "reviewer"}, :review, :create)
     refute RBAC.allowed?(%Membership{role: "observer"}, :review, :create)
