@@ -85,6 +85,38 @@ defmodule Vela.AuthApiTokenTest do
     assert %{actor_id: ["does not exist"]} = errors_on(changeset)
   end
 
+  test "hashes API tokens without storing raw token material" do
+    token = "vela_live_test_token"
+    secret = "signing-secret"
+
+    assert {:ok, hash} = Auth.hash_api_token(token, secret)
+
+    assert String.starts_with?(hash, "v1:hmac_sha256:")
+    refute String.contains?(hash, token)
+    assert Auth.hash_api_token(token, secret) == {:ok, hash}
+    assert {:ok, other_hash} = Auth.hash_api_token(token, "other-secret")
+    assert other_hash != hash
+  end
+
+  test "verifies API token hashes and rejects mismatches" do
+    token = "vela_live_test_token"
+    secret = "signing-secret"
+    {:ok, hash} = Auth.hash_api_token(token, secret)
+    replacement = if String.last(hash) == "0", do: "1", else: "0"
+    wrong_hash = String.replace_suffix(hash, String.last(hash), replacement)
+
+    assert :ok = Auth.verify_api_token(token, hash, secret)
+    assert {:error, :invalid_token} = Auth.verify_api_token("wrong-token", hash, secret)
+    assert {:error, :invalid_token} = Auth.verify_api_token(token, wrong_hash, secret)
+    assert {:error, :invalid_token} = Auth.verify_api_token(token, "malformed", secret)
+  end
+
+  test "rejects blank API token hash inputs" do
+    assert {:error, :invalid_token} = Auth.hash_api_token("", "secret")
+    assert {:error, :invalid_secret} = Auth.hash_api_token("token", "")
+    assert {:error, :invalid_token} = Auth.verify_api_token("", "hash", "secret")
+  end
+
   defp auth_fixture!(suffix) do
     {:ok, org} =
       Accounts.create_organization(%{
