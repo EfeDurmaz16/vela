@@ -10,6 +10,7 @@ defmodule VelaWeb.PullRequestPageComponents do
   attr :merge_candidate, :map, default: nil
   attr :comment_form, :map, default: %{"body" => "", "publish_to_github" => "false"}
   attr :comment_error, :string, default: nil
+  attr :merge_error, :string, default: nil
 
   def pull_request_page(assigns) do
     ~H"""
@@ -48,6 +49,25 @@ defmodule VelaWeb.PullRequestPageComponents do
         <.simple_list title="Merge Simulation" items={merge_items(@merge_candidate)} />
         <.simple_list title="Rollback Plan" items={rollback_items(@merge_candidate)} />
       </section>
+
+      <div class="panel p-5">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">
+              Merge Queue
+            </h2>
+            <p class="mt-2 text-sm text-muted-fg">
+              Queue only after review, branch protection, base freshness, readiness, and candidate metadata gates pass.
+            </p>
+            <p :if={@merge_error} class="mt-3 text-sm font-medium text-danger">{@merge_error}</p>
+          </div>
+          <.form for={%{}} id="merge-queue-form" phx-submit="queue_merge">
+            <button type="submit" class="rounded-md bg-fg px-4 py-2 text-sm font-semibold text-bg">
+              Queue Merge
+            </button>
+          </.form>
+        </div>
+      </div>
 
       <div class="panel p-5">
         <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">

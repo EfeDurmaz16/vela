@@ -1,7 +1,7 @@
 defmodule VelaWeb.AppLive do
   use VelaWeb, :live_view
 
-  alias Vela.{Accounts, Actors, Agents, Evidence, Forge, Integrations, Jobs, Repo}
+  alias Vela.{Accounts, Actors, Agents, Evidence, Forge, Integrations, Jobs, Merge, Repo}
   import VelaWeb.AppShellComponents
   import VelaWeb.EvidencePageComponents
   import VelaWeb.PullRequestPageComponents
@@ -34,7 +34,8 @@ defmodule VelaWeb.AppLive do
       import_form: %{"owner" => "", "repo" => ""},
       import_error: nil,
       comment_form: %{"body" => "", "publish_to_github" => "false"},
-      comment_error: nil
+      comment_error: nil,
+      merge_error: nil
     )
   end
 
@@ -93,6 +94,23 @@ defmodule VelaWeb.AppLive do
          |> put_flash(:error, "Review comment could not be recorded.")
          |> assign(:comment_form, params)
          |> assign(:comment_error, "Review comment could not be recorded.")}
+    end
+  end
+
+  def handle_event("queue_merge", _params, socket) do
+    case Merge.queue_after_successful_review(socket.assigns.pull_request) do
+      {:ok, candidate} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Merge queued.")
+         |> assign(:merge_candidate, candidate)
+         |> assign(:merge_error, nil)}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, merge_gate_message(reason))
+         |> assign(:merge_error, merge_gate_message(reason))}
     end
   end
 
@@ -231,6 +249,7 @@ defmodule VelaWeb.AppLive do
       merge_candidate={@merge_candidate}
       comment_form={@comment_form}
       comment_error={@comment_error}
+      merge_error={@merge_error}
     />
     """
   end
@@ -517,4 +536,23 @@ defmodule VelaWeb.AppLive do
       pull_request.id
     )
   end
+
+  defp merge_gate_message(:missing_approval), do: "Missing approving review."
+  defp merge_gate_message(:blocking_review), do: "Blocking review must be resolved."
+  defp merge_gate_message(:stale_base_sha), do: "Base branch moved; refresh the pull request."
+
+  defp merge_gate_message(:branch_protection_missing_approvals),
+    do: "Branch protection requires more approvals."
+
+  defp merge_gate_message(:branch_protection_missing_checks),
+    do: "Branch protection checks have not passed."
+
+  defp merge_gate_message(:missing_readiness), do: "No repository readiness score exists."
+  defp merge_gate_message(:readiness_not_ship), do: "Latest readiness verdict is not ship."
+  defp merge_gate_message(:missing_merge_candidate), do: "No merge candidate exists."
+
+  defp merge_gate_message({:invalid_transition, from, to}),
+    do: "Cannot move merge from #{from} to #{to}."
+
+  defp merge_gate_message(reason), do: "Merge queue gate failed: #{inspect(reason)}."
 end
