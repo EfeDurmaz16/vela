@@ -62,6 +62,65 @@ Analysis callbacks use the generic Vela HMAC signature format: `x-vela-timestamp
 
 Demo read routes require `config :vela, :api, demo_mode?: true`; when disabled they return `401 {"error":{"code":"demo_mode_required"}}`. Repository CRUD, GitHub import start, GitHub PR sync, PR comments, reviewed PR merge queueing, merge cancellation and mutating job routes require the session-backed API auth pipeline. Job mutation routes support `Idempotency-Key`: reusing the same key with the same request body replays the first response without enqueueing another job, while reusing the same key with a different request returns `409 {"error":{"code":"idempotency_key_reused"}}`. Accepted job mutations write a hash-chained evidence event and a pending outbox event in the same database transaction as the queued Oban job. GitHub PR sync imports PR metadata, seeds a merge candidate, creates an initial readiness score and writes evidence/outbox. PR comment creation writes local review state, evidence, outbox and can publish to GitHub via the issue comments REST endpoint when requested. PR merge queueing moves the local merge candidate to `queued` only after all merge gates pass, then writes `merge.queued` evidence/outbox. Merge cancellation moves a queued candidate to `cancelled`, clears its queue position, compacts the repository/branch queue and writes `merge.cancelled` evidence/outbox.
 
+## Auth And Idempotency Examples
+
+Protected API mutations use the signed Phoenix session established by the WorkOS
+callback. Browser clients send the session cookie automatically. Scripted
+clients should use a future tenant-scoped API token; raw token issuance is
+modeled but not exposed in Phase 0.
+
+GitHub repository import:
+
+```bash
+curl -sS "http://localhost:4000/api/v1/repos/import" \
+  -H "content-type: application/json" \
+  -H "idempotency-key: repo-import-sardis-vela-001" \
+  -b "_vela_key=<signed-session-cookie>" \
+  -d '{"owner":"sardis-labs","repo":"vela","provider":"github"}'
+```
+
+Accepted response:
+
+```json
+{
+  "data": {
+    "repository": {
+      "id": "repo-id",
+      "provider": "github",
+      "full_name": "sardis-labs/vela",
+      "import_status": "pending"
+    },
+    "job": {
+      "id": 42,
+      "kind": "repo_import",
+      "status": "queued"
+    }
+  }
+}
+```
+
+Reusing the same `Idempotency-Key` with the same body returns the first response.
+Reusing the key with a different body returns:
+
+```json
+{
+  "error": {
+    "code": "idempotency_key_reused"
+  }
+}
+```
+
+Pull request sync uses the repository id in the path and the provider PR number
+in the body:
+
+```bash
+curl -sS "http://localhost:4000/api/v1/repos/repo-id/sync-pull-request" \
+  -H "content-type: application/json" \
+  -H "idempotency-key: pr-sync-repo-id-17-001" \
+  -b "_vela_key=<signed-session-cookie>" \
+  -d '{"number":17}'
+```
+
 Merge gate failures use `422 {"error":{"code":"merge_gate_failed","reason":"..."}}`. Current reasons are `missing_approval`, `blocking_review`, `branch_protection_missing_approvals`, `branch_protection_missing_checks`, `stale_base_sha`, `missing_readiness`, `readiness_not_ship`, `missing_merge_candidate` and invalid transition strings. Merge cancel failures use `409 {"error":{"code":"merge_cancel_failed","reason":"not_cancellable","status":"..."}}` when the candidate is not currently `queued`.
 
 ## GitHub Sync Depth
