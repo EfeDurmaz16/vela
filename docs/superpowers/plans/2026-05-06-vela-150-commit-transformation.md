@@ -345,10 +345,22 @@ Completed commits from this plan:
 - 59. `docs(evidence): document verification and export`
 - corrective. `fix(evidence): preserve microsecond event ordering`
 - 60. `chore(seeds): seed evidence verifier demo state`
+- 61. `feat(auth): add explicit demo mode config`
+- 62. `test(auth): public reads disabled outside demo`
+- 63. `feat(rbac): add API permission checks`
+- 64. `test(rbac): cover repo mutation roles`
+- 65. `feat(rbac): gate PR comments and merge queue`
+- 66. `test(rbac): cover PR mutation roles`
+- 67. `feat(auth): add API token model stub`
+- 68. `test(auth): cover token changeset constraints`
+- 69. `feat(auth): add signed token hashing utility`
+- 70. `test(auth): cover token hash verification`
+- 71. `docs(security): document demo mode and auth posture`
+- 72. `docs(api): mark auth requirements per endpoint`
 
 Next recommended commit:
 
-- 61. `feat(auth): add explicit demo mode config`
+- 73. `feat(github): import repository branches`
 
 ## Success Criteria
 
