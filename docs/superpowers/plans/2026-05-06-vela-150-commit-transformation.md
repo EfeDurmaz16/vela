@@ -248,6 +248,16 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 - [x] Implement Commit 18: add direct repository import action tests.
 - [x] Implement Commit 19: extract pull request comment action.
 - [x] Implement Commit 20: add direct pull request comment action tests.
+- [x] Implement Commit 21: extract PR merge queue action module.
+- [x] Implement Commit 22: add direct PR merge action tests.
+- [x] Implement Commit 23: extract webhook ingestion action.
+- [x] Implement Commit 24: add direct webhook tenant validation tests.
+- [x] Implement Commit 25: split read collection queries into `ReadModels`.
+- [x] Implement Commit 26: add collection pagination consistency tests.
+- [x] Implement Commit 27: thin remaining job/action controller orchestration.
+- [x] Implement Commit 28: strengthen route dispatch surface tests.
+- [x] Implement Commit 29: document internal API support modules.
+- [x] Implement Commit 30: add controller size guard to `scripts/check.sh`.
 - [x] Run focused API tests after each extraction.
 - [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
 
@@ -266,10 +276,20 @@ Completed commits from this plan:
 - 18. `test(api): cover repo import action directly`
 - 19. `refactor(api): extract PR comment action module`
 - 20. `test(api): cover PR comment action directly`
+- 21. `refactor(api): extract PR merge queue action module`
+- 22. `test(api): cover PR merge action directly`
+- 23. `refactor(api): extract webhook ingestion action`
+- 24. `test(api): cover webhook tenant validation action`
+- 25. `refactor(api): split read collection queries`
+- 26. `test(api): cover collection pagination consistency`
+- 27. `refactor(api): make FoundationController thin`
+- 28. `test(api): preserve full API surface after split`
+- 29. `docs(api): document internal API support modules`
+- 30. `chore(api): enforce controller size guard in check script`
 
 Next recommended commit:
 
-- 21. `refactor(api): extract PR merge queue action module`
+- 31. `refactor(forge): split repository queries`
 
 ## Success Criteria
 
