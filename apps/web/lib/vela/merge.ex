@@ -47,6 +47,21 @@ defmodule Vela.Merge do
     end
   end
 
+  def cancel_queued_candidate(%MergeCandidate{} = candidate) do
+    Repo.transaction(fn ->
+      candidate = Repo.reload!(candidate)
+
+      with :ok <- cancellable?(candidate),
+           queue_scope <- queue_scope(candidate),
+           {:ok, cancelled} <- transition(candidate, "cancelled", %{queue_position: nil}) do
+        compact_queue(queue_scope)
+        cancelled
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
   def allowed_transition?(from, to), do: Vela.StateMachine.allowed?(:merge_candidate, from, to)
   def transitions, do: Vela.StateMachine.transitions(:merge_candidate)
 
@@ -90,6 +105,34 @@ defmodule Vela.Merge do
       nil -> 1
       position -> position + 1
     end
+  end
+
+  defp cancellable?(%MergeCandidate{status: "queued"}), do: :ok
+  defp cancellable?(%MergeCandidate{status: status}), do: {:error, {:not_cancellable, status}}
+
+  defp queue_scope(%MergeCandidate{} = candidate) do
+    %{
+      repository_id: candidate.repository_id,
+      target_branch: candidate.target_branch,
+      queue_position: candidate.queue_position
+    }
+  end
+
+  defp compact_queue(%{queue_position: nil}), do: :ok
+
+  defp compact_queue(%{
+         repository_id: repository_id,
+         target_branch: target_branch,
+         queue_position: queue_position
+       }) do
+    MergeCandidate
+    |> where([c], c.repository_id == ^repository_id)
+    |> where([c], c.target_branch == ^target_branch)
+    |> where([c], c.status in ^@queue_statuses)
+    |> where([c], c.queue_position > ^queue_position)
+    |> Repo.update_all(inc: [queue_position: -1])
+
+    :ok
   end
 
   defp latest_candidate(pull_request_id) do

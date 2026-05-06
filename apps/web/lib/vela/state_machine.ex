@@ -30,13 +30,14 @@ defmodule Vela.StateMachine do
     },
     merge_candidate: %{
       "pending" => ~w(simulating queued),
-      "queued" => ~w(merging blocked),
+      "queued" => ~w(merging blocked cancelled),
       "simulating" => ~w(testing blocked failed),
       "testing" => ~w(ready blocked failed),
       "ready" => ~w(merging blocked),
       "blocked" => ~w(simulating),
       "merging" => ~w(merged failed),
       "merged" => [],
+      "cancelled" => [],
       "failed" => []
     },
     release_candidate: %{
