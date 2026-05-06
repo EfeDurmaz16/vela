@@ -5,9 +5,16 @@ defmodule Vela.Auth do
 
   alias Vela.Accounts.{Membership, Organization, User}
   alias Vela.Actors.Actor
+  alias Vela.Auth.ApiToken
   alias Vela.Repo
 
   import Ecto.Query
+
+  def create_api_token(attrs) do
+    %ApiToken{}
+    |> ApiToken.changeset(attrs)
+    |> Repo.insert()
+  end
 
   def upsert_workos_identity(%{"user" => user_payload} = payload) do
     Repo.transaction(fn ->

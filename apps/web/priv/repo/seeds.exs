@@ -11,6 +11,7 @@ alias Vela.Repo
 for schema <- [
       Vela.Outbox.OutboxEvent,
       Vela.Idempotency.IdempotencyKey,
+      Vela.Auth.ApiToken,
       Vela.Evidence.TamperAlarm,
       Vela.Forge.RepositoryTrustSignal,
       Vela.Integrations.ServiceConnection,
