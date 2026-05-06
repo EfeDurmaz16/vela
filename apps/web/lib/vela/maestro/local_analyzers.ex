@@ -49,7 +49,7 @@ defmodule Vela.Maestro.LocalAnalyzers do
     }
   end
 
-  def sensitive_path?(path), do: contains_any?(path, @sensitive_patterns)
+  def sensitive_path?(path), do: not test_path?(path) and contains_any?(path, @sensitive_patterns)
   def test_path?(path), do: contains_any?(path, @test_patterns)
   def config_path?(path), do: contains_any?(path, @config_patterns)
 
