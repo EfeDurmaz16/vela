@@ -390,10 +390,18 @@ Completed commits from this plan:
 - 102. `test(readiness): cover score input lineage`
 - 103. `feat(readiness): explain score dimensions`
 - 104. `test(readiness): cover explanation validation`
+- 105. `feat(maestro): add analysis callback endpoint`
+- 106. `test(api): verify signed analysis callbacks`
+- 107. `feat(maestro): add deterministic local analyzers`
+- 108. `test(maestro): cover file-risk analyzer`
+- 109. `feat(maestro): add score recalculation job`
+- 110. `test(jobs): cover score recalculation worker`
+- 111. `docs(maestro): separate deterministic and external analysis`
+- 112. `docs(openapi): document analysis callback`
 
 Next recommended commit:
 
-- 105. `feat(maestro): add analysis callback endpoint`
+- 113. `refactor(ui): extract app shell components`
 
 ## Success Criteria
 
