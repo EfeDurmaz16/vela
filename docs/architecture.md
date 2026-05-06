@@ -20,6 +20,35 @@ The Phase 0 app is real where product state matters and mock-backed where correc
 
 The future scale model is cell-based: each cell contains Git gateway nodes, repo-engine writers/replicas, search shards, worker pools, object storage prefixes and health monitors. Phase 0 only stores `repo_cell_id` and documents this boundary.
 
+## System Boundary
+
+```mermaid
+flowchart LR
+  Browser[Browser / LiveView] --> Web[apps/web Phoenix]
+  ApiClient[API client / SDK] --> Web
+  ProviderWebhooks[Provider webhooks] --> Web
+
+  Web --> Postgres[(Postgres)]
+  Web --> Oban[Oban jobs]
+  Web --> Evidence[Vela.Evidence]
+  Web --> Outbox[Outbox events]
+  Web --> GitHub[GitHub REST]
+  Web --> ObjectStore[S3-compatible object storage]
+
+  Evidence --> Postgres
+  Outbox --> Postgres
+  Oban --> Postgres
+  Oban --> GitHub
+
+  Protocol[packages/protocol] -. schemas .-> Web
+  Sdk[packages/sdk-js] -. v1 API .-> Web
+
+  GitGateway[future Git Gateway] -. contract .-> Web
+  MergeEngine[future Merge Engine] -. contract .-> Web
+  Maestro[future Maestro service] -. signed callback .-> Web
+  Runner[future Runner Coordinator] -. contract .-> Web
+```
+
 ## Backend Modules
 
 - `Vela.RBAC`: owner/admin/maintainer/developer/reviewer/observer checks.
