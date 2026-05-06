@@ -56,6 +56,7 @@ defmodule Vela.JobsTest do
       repo_import: {Vela.Jobs.RepoImportWorker, "imports"},
       analysis_run: {Vela.Jobs.AnalysisRunWorker, "analysis"},
       readiness_score: {Vela.Jobs.ReadinessScoreWorker, "scoring"},
+      score_recalculation: {Vela.Jobs.ScoreRecalculationWorker, "scoring"},
       trust_score: {Vela.Jobs.TrustScoreWorker, "scoring"},
       repo_sync: {Vela.Jobs.RepoSyncWorker, "sync"},
       merge_simulation: {Vela.Jobs.MergeSimulationWorker, "merge"}

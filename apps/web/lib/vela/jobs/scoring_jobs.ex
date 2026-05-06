@@ -5,6 +5,7 @@ defmodule Vela.Jobs.ScoringJobs do
 
   @workers %{
     readiness_score: Vela.Jobs.ReadinessScoreWorker,
+    score_recalculation: Vela.Jobs.ScoreRecalculationWorker,
     trust_score: Vela.Jobs.TrustScoreWorker
   }
 

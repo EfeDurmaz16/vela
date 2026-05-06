@@ -65,6 +65,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
              status: "pending"
            }),
          {:ok, _score} <- seed_readiness(repository, pr),
+         {:ok, _job} <- enqueue_score_recalculation(repository, pr),
          :ok <- record_pr_synced(repository, pr, Map.get(args, "actor_id")) do
       :ok
     end
@@ -130,6 +131,14 @@ defmodule Vela.Jobs.RepoSyncWorker do
       explanation: "Seeded from GitHub PR sync until full analysis completes.",
       evidence_refs: [],
       input_refs: Vela.Maestro.ReadinessInputs.collect_for_pull_request(pr.id)
+    })
+  end
+
+  defp enqueue_score_recalculation(repository, pr) do
+    Vela.Jobs.enqueue(:score_recalculation, %{
+      organization_id: repository.organization_id,
+      repository_id: repository.id,
+      pull_request_id: pr.id
     })
   end
 
