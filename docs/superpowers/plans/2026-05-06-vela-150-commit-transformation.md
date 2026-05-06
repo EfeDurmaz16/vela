@@ -378,10 +378,17 @@ Completed commits from this plan:
 - 91. `test(merge): cover tree equivalence transitions`
 - 92. `feat(merge): add queue position model`
 - 93. `test(merge): cover queue ordering`
+- 94. `feat(merge): add queue dequeue/cancel action`
+- 95. `test(api): cover merge cancel endpoint`
+- 96. `feat(merge): add merge execution adapter behavior`
+- 97. `test(merge): cover adapter contract with fake`
+- 98. `docs(merge): update merge queue invariants`
+- 99. `docs(api): document merge cancel and gate errors`
+- 100. `chore(seeds): seed stale and blocked queue examples`
 
 Next recommended commit:
 
-- 94. `feat(merge): add queue dequeue/cancel action`
+- 101. `feat(readiness): persist evidence inputs`
 
 ## Success Criteria
 
