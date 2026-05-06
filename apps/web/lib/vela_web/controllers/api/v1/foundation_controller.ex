@@ -6,11 +6,10 @@ defmodule VelaWeb.Api.V1.FoundationController do
   alias VelaWeb.Api.V1.IdempotentMutation
   alias VelaWeb.Api.V1.MutationAudit
   alias VelaWeb.Api.V1.PullRequestActions
+  alias VelaWeb.Api.V1.ReadModels
   alias VelaWeb.Api.V1.RepoActions
   alias VelaWeb.Api.V1.Response
   alias VelaWeb.Api.V1.WebhookActions
-
-  import Ecto.Query
 
   def orgs(conn, params), do: Response.paged(conn, Accounts.list_organizations(), params)
   def repos(conn, params), do: Response.paged(conn, Forge.list_repositories(), params)
@@ -31,23 +30,19 @@ defmodule VelaWeb.Api.V1.FoundationController do
     do: Response.paged(conn, Integrations.list_environments(), params)
 
   def analysis_runs(conn, params) do
-    runs = Vela.Maestro.AnalysisRun |> order_by([r], desc: r.inserted_at) |> Repo.all()
-    Response.paged(conn, runs, params)
+    Response.paged(conn, ReadModels.analysis_runs(), params)
   end
 
   def readiness_scores(conn, params) do
-    scores = Vela.Maestro.ReadinessScore |> order_by([s], desc: s.inserted_at) |> Repo.all()
-    Response.paged(conn, scores, params)
+    Response.paged(conn, ReadModels.readiness_scores(), params)
   end
 
   def merge_candidates(conn, params) do
-    candidates = Vela.Merge.MergeCandidate |> order_by([c], desc: c.inserted_at) |> Repo.all()
-    Response.paged(conn, candidates, params)
+    Response.paged(conn, ReadModels.merge_candidates(), params)
   end
 
   def releases(conn, params) do
-    releases = Vela.Releases.ReleaseCandidate |> order_by([r], desc: r.inserted_at) |> Repo.all()
-    Response.paged(conn, releases, params)
+    Response.paged(conn, ReadModels.releases(), params)
   end
 
   def repo_trust(conn, %{"id" => id}) do
@@ -190,33 +185,15 @@ defmodule VelaWeb.Api.V1.FoundationController do
   def import_github_repo(conn, params), do: RepoActions.import_github_repo(conn, params)
 
   def change_readiness(conn, %{"id" => id}) do
-    scores =
-      Vela.Maestro.ReadinessScore
-      |> where([s], s.change_id == ^id)
-      |> order_by([s], desc: s.inserted_at)
-      |> Repo.all()
-
-    json(conn, %{data: Enum.map(scores, &Response.serialize/1)})
+    json(conn, %{data: Enum.map(ReadModels.change_readiness(id), &Response.serialize/1)})
   end
 
   def agent_sessions(conn, %{"id" => id} = params) do
-    sessions =
-      Vela.Agents.AgentSession
-      |> where([s], s.agent_actor_id == ^id)
-      |> order_by([s], desc: s.started_at)
-      |> Repo.all()
-
-    Response.paged(conn, sessions, params)
+    Response.paged(conn, ReadModels.agent_sessions(id), params)
   end
 
   def agent_policies(conn, %{"id" => id} = params) do
-    policies =
-      Vela.Agents.AgentPolicy
-      |> where([p], p.actor_id == ^id)
-      |> order_by([p], asc: p.name)
-      |> Repo.all()
-
-    Response.paged(conn, policies, params)
+    Response.paged(conn, ReadModels.agent_policies(id), params)
   end
 
   def import_repo(conn, params), do: RepoActions.import_repo(conn, params)
@@ -224,8 +201,8 @@ defmodule VelaWeb.Api.V1.FoundationController do
   def simulate_merge(conn, %{"id" => id}) do
     candidate =
       Vela.Merge.MergeCandidate
-      |> preload(:repository)
       |> Repo.get!(id)
+      |> Repo.preload(:repository)
 
     IdempotentMutation.respond(conn, candidate.repository.organization_id, fn ->
       {:ok, job} =
