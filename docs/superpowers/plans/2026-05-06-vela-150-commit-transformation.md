@@ -361,10 +361,16 @@ Completed commits from this plan:
 - 74. `test(github): cover branch import mapping`
 - 75. `feat(github): import PR changed files`
 - 76. `test(github): cover changed-file mapping`
+- 77. `feat(git): add normalized diff model`
+- 78. `test(git): cover diff model validation`
+- 79. `feat(github): import PR review state`
+- 80. `test(github): cover review sync mapping`
+- 81. `feat(github): import check runs`
+- 82. `test(github): cover check run mapping`
 
 Next recommended commit:
 
-- 77. `feat(git): add normalized diff model`
+- 83. `feat(sync): make PR sync idempotent by provider ids`
 
 ## Success Criteria
 
