@@ -6,6 +6,7 @@ defmodule Vela.Evidence do
   import Ecto.Query
 
   alias Vela.Evidence.EvidenceEvent
+  alias Vela.Evidence.Verifier
   alias Vela.Repo
 
   def append_event(attrs) do
@@ -53,6 +54,10 @@ defmodule Vela.Evidence do
     |> order_by([e], desc: e.inserted_at)
     |> limit(^limit)
     |> Repo.all()
+  end
+
+  def verify_chain(organization_id, repository_id \\ nil) do
+    Verifier.verify_chain(organization_id, repository_id)
   end
 
   def hash(value),
