@@ -30,7 +30,37 @@ defmodule Vela.JobsRepoSyncTest do
              }}
 
           "/repos/vela/core/pulls/17/files" ->
-            {:ok, %{status: 200, body: []}}
+            {:ok,
+             %{
+               status: 200,
+               body: [
+                 %{
+                   "filename" => "apps/web/lib/core.ex",
+                   "status" => "modified",
+                   "additions" => 12,
+                   "deletions" => 3,
+                   "changes" => 15,
+                   "patch" => "@@ patch",
+                   "blob_url" => "https://github.test/blob/core.ex",
+                   "raw_url" => "https://github.test/raw/core.ex"
+                 },
+                 %{
+                   "filename" => "apps/web/lib/new_name.ex",
+                   "previous_filename" => "apps/web/lib/old_name.ex",
+                   "status" => "renamed",
+                   "additions" => 4,
+                   "deletions" => 1,
+                   "changes" => 5
+                 },
+                 %{
+                   "filename" => "apps/web/lib/deleted.ex",
+                   "status" => "removed",
+                   "additions" => 0,
+                   "deletions" => 8,
+                   "changes" => 8
+                 }
+               ]
+             }}
         end
       end
     )
@@ -86,6 +116,42 @@ defmodule Vela.JobsRepoSyncTest do
     assert pr.source_branch == "feature/sync"
     assert pr.target_branch == "main"
     assert pr.status == "ready_for_review"
+
+    files =
+      Vela.Forge.PullRequestFile
+      |> where([file], file.pull_request_id == ^pr.id)
+      |> order_by([file], asc: file.path)
+      |> Repo.all()
+
+    assert [
+             %{
+               path: "apps/web/lib/core.ex",
+               previous_path: nil,
+               status: "modified",
+               additions: 12,
+               deletions: 3,
+               changes: 15,
+               patch: "@@ patch",
+               blob_url: "https://github.test/blob/core.ex",
+               raw_url: "https://github.test/raw/core.ex"
+             },
+             %{
+               path: "apps/web/lib/deleted.ex",
+               previous_path: nil,
+               status: "removed",
+               additions: 0,
+               deletions: 8,
+               changes: 8
+             },
+             %{
+               path: "apps/web/lib/new_name.ex",
+               previous_path: "apps/web/lib/old_name.ex",
+               status: "renamed",
+               additions: 4,
+               deletions: 1,
+               changes: 5
+             }
+           ] = files
 
     [candidate] = Vela.Merge.MergeCandidate |> Repo.all()
     assert candidate.repository_id == repo.id
