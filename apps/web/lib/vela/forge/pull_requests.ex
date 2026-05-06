@@ -85,6 +85,7 @@ defmodule Vela.Forge.PullRequests do
     |> where([pr, r, o], o.slug == ^org_slug and r.slug == ^repo_slug and pr.id == ^id)
     |> preload([
       :author_actor,
+      :files,
       :reviews,
       :readiness_scores,
       :merge_candidates,

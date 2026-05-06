@@ -103,6 +103,42 @@ defmodule VelaWeb.PullRequestPageComponents do
       </div>
 
       <div class="panel p-5">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">
+          Changed Files
+        </h2>
+        <div :if={@pull_request.files == []} class="mt-4 rounded-lg border border-border bg-bg p-4">
+          <p class="text-sm font-medium text-fg">No imported changed files</p>
+          <p class="mt-1 text-sm text-muted-fg">
+            Sync the pull request from GitHub before using file-level risk signals.
+          </p>
+        </div>
+        <div :if={@pull_request.files != []} class="mt-4 divide-y divide-border">
+          <div
+            :for={file <- sorted_files(@pull_request.files)}
+            class="grid gap-3 py-4 md:grid-cols-[120px_1fr_140px]"
+          >
+            <span class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-fg">
+              {file.status}
+            </span>
+            <div>
+              <p class="font-mono text-sm text-fg">{file.path}</p>
+              <p :if={file.previous_path} class="mt-1 font-mono text-xs text-muted-fg">
+                renamed from {file.previous_path}
+              </p>
+              <p :if={file.blob_sha} class="mt-1 font-mono text-xs text-muted-fg">
+                blob {short_blob(file.blob_sha)}
+              </p>
+            </div>
+            <div class="text-sm text-muted-fg md:text-right">
+              <span class="text-success">+{file.additions}</span>
+              <span class="ml-2 text-danger">-{file.deletions}</span>
+              <p class="mt-1 text-xs">{file.changes} changes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel p-5">
         <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-muted-fg">Raw Code Diff</h2>
         <pre class="mt-4 overflow-auto rounded-lg border border-border bg-bg p-4 text-xs text-muted-fg"><code>Interface defined. Phase 0 uses mock-backed diff metadata.
 
@@ -214,4 +250,8 @@ defmodule VelaWeb.PullRequestPageComponents do
     candidate.rollback_plan
     |> Enum.map(fn {key, value} -> %{title: to_string(key), body: inspect(value)} end)
   end
+
+  defp sorted_files(files), do: Enum.sort_by(files, & &1.path)
+
+  defp short_blob(blob), do: blob |> to_string() |> String.slice(0, 12)
 end
