@@ -367,10 +367,13 @@ Completed commits from this plan:
 - 80. `test(github): cover review sync mapping`
 - 81. `feat(github): import check runs`
 - 82. `test(github): cover check run mapping`
+- 83. `feat(sync): make PR sync idempotent by provider ids`
+- 84. `test(sync): cover repeated PR sync`
+- 85. `docs(api): document GitHub sync depth`
 
 Next recommended commit:
 
-- 83. `feat(sync): make PR sync idempotent by provider ids`
+- 86. `feat(merge): add branch protection model checks`
 
 ## Success Criteria
 
