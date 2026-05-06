@@ -266,6 +266,8 @@ The weak part is not effort. The weak part is shape. The repo mixes product trut
 - [x] Implement Commit 36: add pull request route lookup/preload tests.
 - [x] Implement Commit 37: extract merge gates.
 - [x] Implement Commit 38: add isolated merge gate tests.
+- [x] Implement Commit 39: extract Maestro scoring profiles.
+- [x] Implement Commit 40: add profile scoring edge case tests.
 - [x] Run focused API tests after each extraction.
 - [x] Run full `./scripts/check.sh`; expected and observed: format, warnings-as-errors compile, full test suite passing.
 
@@ -302,10 +304,12 @@ Completed commits from this plan:
 - 36. `test(forge): cover pull request route lookup`
 - 37. `refactor(merge): extract gates module`
 - 38. `test(merge): cover gates in isolation`
+- 39. `refactor(maestro): extract scoring profiles`
+- 40. `test(maestro): cover profile scoring edge cases`
 
 Next recommended commit:
 
-- 39. `refactor(maestro): extract scoring profiles`
+- 41. `refactor(jobs): split job constructors by domain`
 
 ## Success Criteria
 
