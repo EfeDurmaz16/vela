@@ -68,6 +68,9 @@ config :vela, VelaWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :vela, dev_routes: true
 
+# Development serves the unauthenticated read API as a seeded demo surface.
+config :vela, :api, demo_mode?: true
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

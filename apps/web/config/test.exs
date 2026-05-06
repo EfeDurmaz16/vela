@@ -35,3 +35,5 @@ config :phoenix,
   sort_verified_routes_query_params: true
 
 config :vela, Oban, testing: :manual
+
+config :vela, :api, demo_mode?: true

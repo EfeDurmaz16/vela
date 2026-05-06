@@ -29,6 +29,10 @@ config :vela, :workos,
 
 config :vela, :github, token: System.get_env("GITHUB_TOKEN")
 
+if config_env() == :prod do
+  config :vela, :api, demo_mode?: System.get_env("VELA_DEMO_MODE") in ~w(1 true TRUE yes YES)
+end
+
 config :vela, :object_store,
   endpoint: System.get_env("S3_ENDPOINT"),
   bucket: System.get_env("S3_BUCKET"),

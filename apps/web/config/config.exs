@@ -65,6 +65,8 @@ config :vela, Oban,
 
 config :vela, :webhooks, require_signatures?: false, tolerance_seconds: 300, secrets: %{}
 
+config :vela, :api, demo_mode?: false
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

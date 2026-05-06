@@ -22,6 +22,10 @@ defmodule VelaWeb.Router do
     plug VelaWeb.Plugs.ApiAuth
   end
 
+  pipeline :demo_mode_api do
+    plug VelaWeb.Plugs.DemoModeApi
+  end
+
   scope "/", VelaWeb do
     pipe_through :browser
 
@@ -43,7 +47,7 @@ defmodule VelaWeb.Router do
   end
 
   scope "/api/v1", VelaWeb.Api.V1 do
-    pipe_through :api
+    pipe_through [:api, :demo_mode_api]
 
     get "/orgs", FoundationController, :orgs
     get "/repos", FoundationController, :repos
@@ -63,6 +67,11 @@ defmodule VelaWeb.Router do
     get "/integrations", FoundationController, :integrations
     get "/service-connections", FoundationController, :service_connections
     get "/environments", FoundationController, :environments
+  end
+
+  scope "/api/v1", VelaWeb.Api.V1 do
+    pipe_through :api
+
     post "/webhooks/:provider", FoundationController, :webhook
   end
 
