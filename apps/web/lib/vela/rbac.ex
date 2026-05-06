@@ -10,6 +10,8 @@ defmodule Vela.RBAC do
     "admin" => :all,
     "maintainer" => [
       {:repository, :create},
+      {:repository, :import},
+      {:repository, :sync_pull_request},
       {:repository, :update},
       {:change, :update},
       {:pull_request, :update},

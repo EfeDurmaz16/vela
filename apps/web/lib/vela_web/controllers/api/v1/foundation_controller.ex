@@ -1,7 +1,7 @@
 defmodule VelaWeb.Api.V1.FoundationController do
   use VelaWeb, :controller
 
-  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations}
+  alias Vela.{Accounts, Agents, Evidence, Forge, Integrations, RBAC}
   alias VelaWeb.Api.V1.EvidenceActions
   alias VelaWeb.Api.V1.MergeActions
   alias VelaWeb.Api.V1.PullRequestActions
@@ -56,30 +56,34 @@ defmodule VelaWeb.Api.V1.FoundationController do
   end
 
   def create_repo(conn, params) do
-    attrs =
-      params
-      |> Map.take([
-        "name",
-        "slug",
-        "visibility",
-        "default_branch",
-        "description",
-        "provider",
-        "external_id",
-        "full_name",
-        "html_url",
-        "repo_cell_id",
-        "health_status",
-        "risk_level"
-      ])
-      |> Map.put("organization_id", conn.assigns.current_organization.id)
+    with :ok <- authorize(conn, :repository, :create) do
+      attrs =
+        params
+        |> Map.take([
+          "name",
+          "slug",
+          "visibility",
+          "default_branch",
+          "description",
+          "provider",
+          "external_id",
+          "full_name",
+          "html_url",
+          "repo_cell_id",
+          "health_status",
+          "risk_level"
+        ])
+        |> Map.put("organization_id", conn.assigns.current_organization.id)
 
-    with {:ok, repository} <- Forge.create_repository(attrs) do
-      conn
-      |> put_status(:created)
-      |> json(%{data: Response.serialize(repository)})
+      with {:ok, repository} <- Forge.create_repository(attrs) do
+        conn
+        |> put_status(:created)
+        |> json(%{data: Response.serialize(repository)})
+      else
+        {:error, changeset} -> Response.validation_error(conn, changeset)
+      end
     else
-      {:error, changeset} -> Response.validation_error(conn, changeset)
+      {:error, :forbidden} -> Response.forbidden(conn)
     end
   end
 
@@ -93,6 +97,7 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   def update_repo(conn, %{"id" => id} = params) do
     with {:ok, repository} <- fetch_repo(conn, id),
+         :ok <- authorize(conn, :repository, :update),
          {:ok, repository} <-
            Forge.update_repository(
              repository,
@@ -110,16 +115,19 @@ defmodule VelaWeb.Api.V1.FoundationController do
       json(conn, %{data: Response.serialize(repository)})
     else
       {:error, :not_found} -> Response.repo_not_found(conn)
+      {:error, :forbidden} -> Response.forbidden(conn)
       {:error, changeset} -> Response.validation_error(conn, changeset)
     end
   end
 
   def delete_repo(conn, %{"id" => id}) do
     with {:ok, repository} <- fetch_repo(conn, id),
+         :ok <- authorize(conn, :repository, :delete),
          {:ok, _repository} <- Forge.delete_repository(repository) do
       send_resp(conn, :no_content, "")
     else
       {:error, :not_found} -> Response.repo_not_found(conn)
+      {:error, :forbidden} -> Response.forbidden(conn)
       {:error, changeset} -> Response.validation_error(conn, changeset)
     end
   end
@@ -145,11 +153,15 @@ defmodule VelaWeb.Api.V1.FoundationController do
 
   def sync_pull_request(conn, %{"id" => id, "number" => number}) do
     with {:ok, repository} <- fetch_repo(conn, id),
+         :ok <- authorize(conn, :repository, :sync_pull_request),
          {:ok, number} <- parse_positive_integer(number) do
       RepoActions.sync_pull_request(conn, repository, number)
     else
       {:error, :not_found} ->
         Response.repo_not_found(conn)
+
+      {:error, :forbidden} ->
+        Response.forbidden(conn)
 
       {:error, :invalid_number} ->
         Response.validation_error(conn, %{errors: %{number: ["must be a positive integer"]}})
@@ -172,7 +184,13 @@ defmodule VelaWeb.Api.V1.FoundationController do
     end
   end
 
-  def import_github_repo(conn, params), do: RepoActions.import_github_repo(conn, params)
+  def import_github_repo(conn, params) do
+    with :ok <- authorize(conn, :repository, :create) do
+      RepoActions.import_github_repo(conn, params)
+    else
+      {:error, :forbidden} -> Response.forbidden(conn)
+    end
+  end
 
   def change_readiness(conn, %{"id" => id}) do
     json(conn, %{data: Enum.map(ReadModels.change_readiness(id), &Response.serialize/1)})
@@ -186,7 +204,13 @@ defmodule VelaWeb.Api.V1.FoundationController do
     Response.paged(conn, ReadModels.agent_policies(id), params)
   end
 
-  def import_repo(conn, params), do: RepoActions.import_repo(conn, params)
+  def import_repo(conn, params) do
+    with :ok <- authorize(conn, :repository, :import) do
+      RepoActions.import_repo(conn, params)
+    else
+      {:error, :forbidden} -> Response.forbidden(conn)
+    end
+  end
 
   def simulate_merge(conn, params), do: MergeActions.simulate(conn, params)
 
@@ -196,6 +220,14 @@ defmodule VelaWeb.Api.V1.FoundationController do
     case Forge.get_repository_for_org(conn.assigns.current_organization.id, id) do
       nil -> {:error, :not_found}
       repository -> {:ok, repository}
+    end
+  end
+
+  defp authorize(conn, resource, action) do
+    if RBAC.allowed?(conn.assigns.current_membership, resource, action) do
+      :ok
+    else
+      {:error, :forbidden}
     end
   end
 
