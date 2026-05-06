@@ -39,6 +39,14 @@ defmodule Vela.Merge.Gates do
     end
   end
 
+  def base_freshness_gate(%PullRequest{} = pull_request) do
+    case protected_branch(pull_request) do
+      %Branch{current_sha: current_sha} when current_sha == pull_request.base_sha -> :ok
+      %Branch{} -> {:error, :stale_base_sha}
+      nil -> :ok
+    end
+  end
+
   def readiness_gate(repository_id) do
     latest =
       Vela.Maestro.ReadinessScore
