@@ -203,6 +203,29 @@ defmodule Vela.EvidenceTest do
     assert {"is invalid", _} = changeset.errors[:event_type]
   end
 
+  test "requires an explicit actor for critical events and accepts system actors" do
+    %{actor: actor, org: org} = evidence_fixture!("critical-actor")
+
+    assert {:error, :critical_actor_required} =
+             Evidence.append_event(%{
+               organization_id: org.id,
+               event_type: "merge.queued",
+               resource_type: "merge_candidate",
+               payload: %{candidate: "mc_1"}
+             })
+
+    assert {:ok, event} =
+             Evidence.append_event(%{
+               organization_id: org.id,
+               actor_id: actor.id,
+               event_type: "merge.queued",
+               resource_type: "merge_candidate",
+               payload: %{candidate: "mc_1"}
+             })
+
+    assert event.actor_id == actor.id
+  end
+
   defp evidence_fixture!(suffix) do
     {:ok, org} =
       Accounts.create_organization(%{
