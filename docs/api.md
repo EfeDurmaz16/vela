@@ -29,6 +29,7 @@ Public/read-only routes:
 - `GET /api/v1/merge-candidates`
 - `GET /api/v1/releases`
 - `GET /api/v1/evidence-events`
+- `GET /api/v1/evidence-events/verify?organization_id=:organization_id[&repository_id=:repository_id]`
 - `GET /api/v1/integrations`
 - `GET /api/v1/service-connections`
 - `GET /api/v1/environments`
