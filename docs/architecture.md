@@ -26,8 +26,13 @@ The future scale model is cell-based: each cell contains Git gateway nodes, repo
 - `Vela.Policy`: fail-closed agent merge policy evaluation.
 - `Vela.StateMachine`: explicit transitions for Change, AgentSession, AnalysisRun, MergeCandidate and ReleaseCandidate.
 - `Vela.Evidence`: append-only event writes with canonical JSON payload hashes.
-- `Vela.Jobs`: Oban constructors for expensive import, sync, analysis, scoring and simulation jobs.
+- `Vela.Jobs`: facade for expensive import, sync, analysis, scoring and simulation jobs.
+- `Vela.Jobs.RepositoryJobs`, `Vela.Jobs.AnalysisJobs`, `Vela.Jobs.ScoringJobs`, `Vela.Jobs.MergeJobs`: domain-specific Oban constructor registries.
 - `Vela.Integrations`: adapter behavior and persisted provider/service/environment records.
+- `Vela.Forge.Repositories`, `Vela.Forge.PullRequests`, `Vela.Forge.Reviews`, `Vela.Forge.TrustSignals`: focused forge-domain read/write surfaces behind the `Vela.Forge` facade.
+- `Vela.Merge.Gates`: review and readiness gates that must pass before a merge candidate can be queued.
+- `Vela.Maestro.ScoringProfiles`: weighted launch readiness profile definitions and score calculation.
+- `Vela.Webhooks.Verifiers.*`: provider-specific signature verifiers for GitHub, Stripe, WorkOS, Svix and generic Vela HMAC fallback.
 - `Vela.Git.*`: behaviours for GitProvider, RepoImporter, RefService, DiffService and MergeSimulator sidecars.
 - `Vela.Storage.ObjectStore`: object storage boundary for logs, artifacts, analysis outputs and releases.
 - `Vela.Auth.WorkOS`: WorkOS SSO boundary for human auth.
