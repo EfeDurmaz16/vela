@@ -13,8 +13,8 @@ defmodule Vela.Forge do
     PullRequest,
     Repositories,
     Repository,
-    RepositoryTrustSignal,
-    Reviews
+    Reviews,
+    TrustSignals
   }
 
   alias Vela.Repo
@@ -52,8 +52,7 @@ defmodule Vela.Forge do
   def create_review(attrs), do: Reviews.create(attrs)
   def create_issue(attrs), do: %Issue{} |> Issue.changeset(attrs) |> Repo.insert()
 
-  def create_repository_trust_signal(attrs),
-    do: %RepositoryTrustSignal{} |> RepositoryTrustSignal.changeset(attrs) |> Repo.insert()
+  def create_repository_trust_signal(attrs), do: TrustSignals.create(attrs)
 
   def list_changes do
     Change
@@ -64,19 +63,11 @@ defmodule Vela.Forge do
 
   def list_repositories, do: Repositories.list()
 
-  def list_repository_trust_signals(repository_id) do
-    RepositoryTrustSignal
-    |> where([s], s.repository_id == ^repository_id)
-    |> order_by([s], desc: s.inserted_at)
-    |> Repo.all()
-  end
+  def list_repository_trust_signals(repository_id),
+    do: TrustSignals.list_for_repository(repository_id)
 
   def latest_repository_trust_signal(repository_id) do
-    RepositoryTrustSignal
-    |> where([s], s.repository_id == ^repository_id)
-    |> order_by([s], desc: s.inserted_at)
-    |> limit(1)
-    |> Repo.one()
+    TrustSignals.latest_for_repository(repository_id)
   end
 
   def count_open_pull_requests(repository_id), do: PullRequests.count_open(repository_id)
