@@ -14,6 +14,7 @@ for schema <- [
       Vela.Auth.ApiToken,
       Vela.Evidence.TamperAlarm,
       Vela.Forge.RepositoryTrustSignal,
+      Vela.Forge.CheckRun,
       Vela.Integrations.ServiceConnection,
       Vela.Integrations.Environment,
       Vela.Integrations.Integration,

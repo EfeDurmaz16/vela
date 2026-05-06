@@ -90,6 +90,9 @@ defmodule Vela.JobsRepoSyncTest do
                  }
                ]
              }}
+
+          "/repos/vela/core/commits/headsha/check-runs" ->
+            {:ok, %{status: 200, body: %{"check_runs" => []}}}
         end
       end
     )

@@ -27,6 +27,7 @@ defmodule Vela.Forge.PullRequest do
     belongs_to :author_actor, Vela.Actors.Actor
     has_many :reviews, Vela.Forge.Review
     has_many :files, Vela.Forge.PullRequestFile
+    has_many :check_runs, Vela.Forge.CheckRun
     has_many :analysis_runs, Vela.Maestro.AnalysisRun
     has_many :readiness_scores, Vela.Maestro.LaunchReadinessScore
     has_many :merge_candidates, Vela.Merge.MergeCandidate

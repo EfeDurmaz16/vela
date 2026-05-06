@@ -31,6 +31,8 @@ defmodule Vela.Jobs.RepoSyncWorker do
     with {:ok, imported} <- Vela.Git.GitHubClient.fetch_pull_request(attrs),
          {:ok, changed_files} <- Vela.Git.GitHubClient.list_pull_request_files(attrs),
          {:ok, reviews} <- Vela.Git.GitHubClient.list_pull_request_reviews(attrs),
+         {:ok, check_runs} <-
+           Vela.Git.GitHubClient.list_check_runs(Map.put(attrs, :sha, imported.head_sha)),
          {:ok, pr} <-
            Vela.Forge.upsert_pull_request_by_provider(
              repository.id,
@@ -53,6 +55,7 @@ defmodule Vela.Jobs.RepoSyncWorker do
            ),
          :ok <- import_pull_request_files(pr.id, changed_files),
          :ok <- import_pull_request_reviews(pr.id, reviews, Map.get(args, "actor_id")),
+         :ok <- import_check_runs(repository.id, pr.id, check_runs),
          {:ok, _candidate} <-
            Vela.Merge.upsert_merge_candidate_by_pull_request(pr.id, %{
              repository_id: repository.id,
@@ -89,6 +92,15 @@ defmodule Vela.Jobs.RepoSyncWorker do
              Map.put(review, :actor_id, actor_id)
            ) do
         {:ok, _review} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
+
+  defp import_check_runs(repository_id, pull_request_id, check_runs) do
+    Enum.reduce_while(check_runs, :ok, fn check_run, :ok ->
+      case Vela.Forge.upsert_check_run(repository_id, pull_request_id, check_run) do
+        {:ok, _check_run} -> {:cont, :ok}
         {:error, changeset} -> {:halt, {:error, changeset}}
       end
     end)

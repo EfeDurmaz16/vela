@@ -7,6 +7,7 @@ defmodule Vela.Forge do
 
   alias Vela.Forge.{
     Branch,
+    CheckRun,
     Change,
     Issue,
     PullRequestFile,
@@ -88,6 +89,34 @@ defmodule Vela.Forge do
         ]
       ],
       conflict_target: [:pull_request_id, :path]
+    )
+  end
+
+  def upsert_check_run(repository_id, pull_request_id, attrs) do
+    now = DateTime.utc_now(:second)
+
+    attrs =
+      attrs
+      |> Map.put(:repository_id, repository_id)
+      |> Map.put(:pull_request_id, pull_request_id)
+
+    %CheckRun{}
+    |> CheckRun.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: [
+        set: [
+          repository_id: repository_id,
+          pull_request_id: pull_request_id,
+          name: attrs.name,
+          status: attrs.status,
+          conclusion: attrs.conclusion,
+          details_url: attrs.details_url,
+          started_at: attrs.started_at,
+          completed_at: attrs.completed_at,
+          updated_at: now
+        ]
+      ],
+      conflict_target: [:provider, :external_id]
     )
   end
 

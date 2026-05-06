@@ -73,6 +73,17 @@ defmodule Vela.Git.GitHubClient do
     end
   end
 
+  def list_check_runs(attrs) do
+    with {:ok, body} <-
+           get_json(
+             attrs,
+             "/repos/#{owner(attrs)}/#{repo(attrs)}/commits/#{Map.fetch!(attrs, :sha)}/check-runs"
+           ) do
+      check_runs = body["check_runs"] || []
+      {:ok, Enum.map(check_runs, &normalize_check_run/1)}
+    end
+  end
+
   def create_issue_comment(attrs) do
     path = "/repos/#{owner(attrs)}/#{repo(attrs)}/issues/#{Map.fetch!(attrs, :number)}/comments"
 
@@ -227,6 +238,18 @@ defmodule Vela.Git.GitHubClient do
       submitted_at: parse_datetime(review["submitted_at"])
     }
 
+  defp normalize_check_run(check_run),
+    do: %{
+      provider: "github",
+      external_id: to_string(check_run["id"]),
+      name: check_run["name"],
+      status: normalize_check_status(check_run["status"]),
+      conclusion: normalize_check_conclusion(check_run["conclusion"]),
+      details_url: check_run["details_url"] || check_run["html_url"],
+      started_at: parse_datetime(check_run["started_at"]),
+      completed_at: parse_datetime(check_run["completed_at"])
+    }
+
   defp normalize_pull_request_status(%{"draft" => true}), do: "draft"
   defp normalize_pull_request_status(%{"state" => "closed", "merged" => true}), do: "merged"
   defp normalize_pull_request_status(%{"state" => "closed"}), do: "closed"
@@ -237,6 +260,20 @@ defmodule Vela.Git.GitHubClient do
   defp normalize_review_state("CHANGES_REQUESTED"), do: "request_changes"
   defp normalize_review_state("COMMENTED"), do: "comment"
   defp normalize_review_state(_state), do: "comment"
+
+  defp normalize_check_status(status)
+       when status in ~w(queued in_progress completed waiting requested pending),
+       do: status
+
+  defp normalize_check_status(_status), do: "pending"
+
+  defp normalize_check_conclusion(nil), do: nil
+
+  defp normalize_check_conclusion(conclusion)
+       when conclusion in ~w(success failure neutral cancelled skipped timed_out action_required startup_failure stale),
+       do: conclusion
+
+  defp normalize_check_conclusion(_conclusion), do: "neutral"
 
   defp parse_datetime(nil), do: nil
 
