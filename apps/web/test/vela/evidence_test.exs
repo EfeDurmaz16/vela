@@ -1,7 +1,7 @@
 defmodule Vela.EvidenceTest do
   use Vela.DataCase
 
-  alias Vela.{Accounts, Actors, Evidence}
+  alias Vela.{Accounts, Actors, Evidence, Repo}
 
   test "appends a hash-chained evidence stream" do
     {:ok, org} = Accounts.create_organization(%{name: "Test Org", slug: "test-org", plan: "free"})
@@ -109,5 +109,67 @@ defmodule Vela.EvidenceTest do
     assert first_a.prev_event_hash == nil
     assert first_b.prev_event_hash == nil
     assert second_a.prev_event_hash == first_a.event_hash
+  end
+
+  test "verifier detects tampered payloads" do
+    %{actor: actor, org: org} = evidence_fixture!("tamper")
+
+    {:ok, event} =
+      Evidence.append_event(%{
+        organization_id: org.id,
+        actor_id: actor.id,
+        event_type: "policy.evaluated",
+        resource_type: "policy",
+        payload: %{verdict: "allow"}
+      })
+
+    event
+    |> Ecto.Changeset.change(payload: %{"verdict" => "block"})
+    |> Repo.update!()
+
+    assert {:error, %{event_id: event_id, event_hash: event_hash, reason: :payload_hash_mismatch}} =
+             Evidence.verify_chain(org.id)
+
+    assert event_id == event.id
+    assert event_hash == event.event_hash
+  end
+
+  test "verifier accepts empty and single-event chains" do
+    {:ok, empty_org} =
+      Accounts.create_organization(%{name: "Empty Evidence Org", slug: "empty-evidence-org"})
+
+    assert {:ok, %{count: 0, last_hash: nil}} = Evidence.verify_chain(empty_org.id)
+
+    %{actor: actor, org: org} = evidence_fixture!("single")
+
+    {:ok, event} =
+      Evidence.append_event(%{
+        organization_id: org.id,
+        actor_id: actor.id,
+        event_type: "repo.created",
+        resource_type: "repository",
+        payload: %{repo: "single"}
+      })
+
+    assert {:ok, %{count: 1, last_hash: last_hash}} = Evidence.verify_chain(org.id)
+    assert last_hash == event.event_hash
+  end
+
+  defp evidence_fixture!(suffix) do
+    {:ok, org} =
+      Accounts.create_organization(%{
+        name: "Evidence #{suffix}",
+        slug: "evidence-#{suffix}"
+      })
+
+    {:ok, actor} =
+      Actors.create_actor(%{
+        organization_id: org.id,
+        type: "system",
+        display_name: "Evidence Actor #{suffix}",
+        trust_level: "trusted"
+      })
+
+    %{actor: actor, org: org}
   end
 end

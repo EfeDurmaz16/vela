@@ -10,7 +10,7 @@ defmodule Vela.Evidence do
   alias Vela.Repo
 
   def append_event(attrs) do
-    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    now = %{DateTime.utc_now(:microsecond) | microsecond: {0, 6}}
     payload = Map.get(attrs, :payload, %{})
     payload_hash = hash(payload)
     prev_event_hash = latest_event_hash(attrs.organization_id, Map.get(attrs, :repository_id))
