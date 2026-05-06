@@ -1,22 +1,49 @@
 # Vela
 
-The AI-native forge for trusted software.
+Trusted forge control plane for human and agent-generated software changes.
 
-Vela is a Git-compatible software forge built for the agent era. It combines beautiful pull requests, agent identity, deterministic merge queues, autonomous launch readiness analysis and append-only evidence so teams can trust every human and AI-generated code change.
+Vela sits next to Git hosting and makes code-change trust explicit before a
+change is merged, shipped, or delegated to an agent. It models repositories,
+pull requests, actors, agent sessions, readiness signals, merge candidates,
+policy decisions, and append-only evidence in one Phoenix/Postgres control
+plane.
 
-GitHub stores code. Vela proves whether code can be trusted.
+GitHub stores code. Vela records why a change was trusted, blocked, queued, or
+cancelled.
+
+## What Vela Does
+
+- Imports GitHub repository and pull request metadata into a local forge model.
+- Tracks human and agent actors separately so authority is visible in workflow
+  state.
+- Computes readiness inputs from deterministic analyzers, synced PR metadata,
+  reviews, checks, and changed files.
+- Gates merge queue entry before local merge candidates can move to `queued`.
+- Writes hash-chained evidence and pending outbox events for accepted
+  mutations.
+- Exposes a small v1 API, protocol schemas, webhook examples, and a minimal
+  JavaScript SDK for integration work.
 
 ## Phase 0 Status
 
-This repository currently implements the Phase 0 foundation:
+This repository currently implements the Phase 0 foundation, not a complete
+hosted forge:
 
 - Phoenix LiveView control-plane app in `apps/web`
-- Postgres/Ecto domain model for organizations, actors, agents, repositories, PRs, readiness scores, merge candidates, policies, runners and evidence events
+- Postgres/Ecto domain model for organizations, actors, agents, repositories,
+  PRs, readiness scores, merge candidates, policies, runners and evidence events
 - Seeded Sardis Labs demo workspace
-- PR cockpit, repo overview, agent profile, launch cockpit, evidence ledger and settings surfaces
-- Mock-backed Git, Merge, Maestro and Runner service contracts
+- Repository overview, PR cockpit, changed-file view, merge queue actions,
+  evidence ledger, chain verifier status, agent profile, launch cockpit and
+  settings surfaces
+- Session-backed API auth, RBAC checks, idempotent job mutations, signed
+  analysis callbacks and provider webhook verification
+- Mock-backed Git, Merge, Maestro and Runner service contracts for future
+  sidecars
 
-The first milestone does not implement real Git hosting, real merge commits, real LLM analysis, hosted CI, production WorkOS login or enterprise compliance automation.
+The first milestone does not implement real Git hosting, real merge commits,
+hosted CI execution, production WorkOS tenant provisioning or enterprise
+compliance automation.
 
 ## Local Development
 
@@ -28,11 +55,18 @@ The first milestone does not implement real Git hosting, real merge commits, rea
 
 Open `http://localhost:4000`.
 
+Run the same check used by CI:
+
+```bash
+./scripts/check.sh
+```
+
 ## Architecture Map
 
 - `apps/web` is the Phoenix/Postgres control plane.
 - `services/*/contracts` defines future Rust/Python service boundaries.
 - `packages/protocol` holds shared event and score schema contracts.
+- `packages/sdk-js` holds the dependency-free Phase 0 JavaScript API client.
 - `docs` records product, architecture, security, evidence and roadmap decisions.
 
 ## Docs
