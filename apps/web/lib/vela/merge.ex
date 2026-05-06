@@ -31,6 +31,7 @@ defmodule Vela.Merge do
 
   def queue_after_successful_review(%Vela.Forge.PullRequest{} = pull_request) do
     with :ok <- Gates.review_gate(pull_request.id),
+         :ok <- Gates.branch_protection_gate(pull_request),
          :ok <- Gates.readiness_gate(pull_request.repository_id),
          %MergeCandidate{} = candidate <- latest_candidate(pull_request.id),
          {:ok, queued} <- transition(candidate, "queued") do

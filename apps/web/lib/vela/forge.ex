@@ -52,6 +52,8 @@ defmodule Vela.Forge do
         set: [
           current_sha: attrs.current_sha,
           protected: attrs.protected,
+          required_approvals: Map.get(attrs, :required_approvals, 1),
+          required_checks: Map.get(attrs, :required_checks, []),
           updated_at: now
         ]
       ],
